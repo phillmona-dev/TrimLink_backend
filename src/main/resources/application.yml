@@ -1,0 +1,197 @@
+spring:
+  application:
+    name: trimlink-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/trimlink}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        default_batch_fetch_size: 20
+        jdbc:
+          batch_size: 30
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: trimlink-notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.trimlink.messaging.event"
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
+# ==================== SERVER ====================
+server:
+  port: ${SERVER_PORT:9090}
+  servlet:
+    context-path: /api/v1
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  http2:
+    enabled: true
+
+# ==================== SECURITY / JWT ====================
+trimlink:
+  app:
+    base-url: ${APP_BASE_URL:http://localhost:9090/api/v1}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:bXlfc3VwZXJfc2VjcmV0X2tleV9mb3JfdHJpbWxpbmtfYXBwbGljYXRpb25fdGhhdF9pc192ZXJ5X2xvbmc=}
+      access-token-expiry: 900000        # 15 minutes (ms)
+      refresh-token-expiry: 604800000    # 7 days (ms)
+    otp:
+      ttl-minutes: 5
+      digits: 6
+      max-attempts: 3
+    cors:
+      allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
+
+  # ==================== PAYMENT ====================
+  payment:
+    chapa:
+      base-url: ${CHAPA_BASE_URL:https://api.chapa.co/v1}
+      secret-key: ${CHAPA_SECRET_KEY:}
+      webhook-secret: ${CHAPA_WEBHOOK_SECRET:}
+      callback-url: ${CHAPA_CALLBACK_URL:${trimlink.app.base-url}/payments/callback/chapa}
+      return-url: ${CHAPA_RETURN_URL:${trimlink.app.base-url}/payments/return}
+    telebirr:
+      base-url: ${TELEBIRR_BASE_URL:https://payment.telebirr.com}
+      app-id: ${TELEBIRR_APP_ID:}
+      app-key: ${TELEBIRR_APP_KEY:}
+      public-key: ${TELEBIRR_PUBLIC_KEY:}
+      notify-url: ${TELEBIRR_NOTIFY_URL:https://yourapi.trimlink.et/api/v1/webhooks/payment/telebirr}
+      return-url: ${TELEBIRR_RETURN_URL:${trimlink.app.base-url}/payments/return}
+      short-code: ${TELEBIRR_SHORT_CODE:1000}
+      initiate-path: ${TELEBIRR_INITIATE_PATH:/merchant/v1/payment/preorder}
+      verify-path: ${TELEBIRR_VERIFY_PATH:/merchant/v1/payment/query}
+      signature-algorithm: ${TELEBIRR_SIGNATURE_ALGORITHM:RSA}
+      timeout-seconds: ${TELEBIRR_TIMEOUT_SECONDS:900}
+
+  # ==================== NOTIFICATION ====================
+  notification:
+    sms:
+      provider: ${SMS_PROVIDER:afromessage}   # or 'infobip'
+      api-url: ${SMS_API_URL:https://api.afromessage.com/api/send}
+      api-key: ${SMS_API_KEY:}
+      sender-id: ${SMS_SENDER_ID:TrimLink}
+      identifier-id: ${SMS_IDENTIFIER_ID:}
+    push:
+      enabled: ${PUSH_ENABLED:false}
+      provider: ${PUSH_PROVIDER:fcm}
+      firebase-credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
+  # ==================== KAFKA TOPICS ====================
+  kafka:
+    topics:
+      booking-created: trimlink.booking.created
+      booking-cancelled: trimlink.booking.cancelled
+      booking-completed: trimlink.booking.completed
+      payment-success: trimlink.payment.success
+      payment-failed: trimlink.payment.failed
+      queue-updated: trimlink.queue.updated
+      otp-requested: trimlink.otp.requested
+
+# ==================== RESILIENCE4J ====================
+resilience4j:
+  circuitbreaker:
+    instances:
+      chapa:
+        register-health-indicator: true
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      telebirr:
+        register-health-indicator: true
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+  retry:
+    instances:
+      chapa:
+        max-attempts: 3
+        wait-duration: 2s
+      telebirr:
+        max-attempts: 3
+        wait-duration: 2s
+
+# ==================== ACTUATOR ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    redis:
+      enabled: true
+    kafka:
+      enabled: true
+
+# ==================== DOCS ====================
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui
+    operations-sorter: method
+
+# ==================== LOGGING ====================
+logging:
+  level:
+    com.trimlink: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

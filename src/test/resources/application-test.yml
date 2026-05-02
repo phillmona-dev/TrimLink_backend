@@ -1,0 +1,49 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: localhost:9092
+
+trimlink:
+  app:
+    base-url: http://localhost:9090/api/v1
+  security:
+    jwt:
+      secret: dGVzdHNlY3JldGtleWZvcnRlc3Rpbmdvbmx5ZG9ub3R1c2VpbnByb2R1Y3Rpb24x
+      access-token-expiry: 900000
+      refresh-token-expiry: 604800000
+    otp:
+      ttl-minutes: 5
+      digits: 6
+      max-attempts: 3
+    cors:
+      allowed-origin-patterns: http://localhost:*
+  notification:
+    sms:
+      api-key: ""   # disabled in tests
+    push:
+      enabled: false
+  payment:
+    chapa:
+      base-url: http://localhost:8089
+      secret-key: test_key
+      webhook-secret: test_webhook_secret
+      callback-url: http://localhost:9090/api/v1/payments/callback/chapa
+      return-url: http://localhost:9090/api/v1/payments/return
+    telebirr:
+      base-url: http://localhost:8089
+      app-id: test
+      app-key: test
+      public-key: test
+      notify-url: http://localhost/webhooks
+      return-url: http://localhost/return
+      short-code: "1000"
+      signature-algorithm: HMAC-SHA256
+
+logging:
+  level:
+    com.trimlink: DEBUG
+    org.springframework.security: DEBUG
