@@ -18,8 +18,19 @@ public class ShopSearchResponse {
     private String logoUrl;
     private Double latitude;
     private Double longitude;
+    private boolean active;
     private String ownerName;
     private String ownerPhone;
+    private java.util.List<BankAccountDTO> bankAccounts;
+
+    @Data
+    @Builder
+    public static class BankAccountDTO {
+        private UUID id;
+        private String bankName;
+        private String accountNumber;
+        private String accountHolder;
+    }
 
     public static ShopSearchResponse from(BarberShop shop, String ownerName, String ownerPhone) {
         return ShopSearchResponse.builder()
@@ -32,8 +43,18 @@ public class ShopSearchResponse {
                 .logoUrl(shop.getLogoUrl())
                 .latitude(shop.getLatitude())
                 .longitude(shop.getLongitude())
+                .active(shop.isActive())
                 .ownerName(ownerName)
                 .ownerPhone(ownerPhone)
+                .bankAccounts(shop.getBankAccounts() != null ? shop.getBankAccounts().stream()
+                        .filter(acc -> acc.isActive() && !acc.isDeleted())
+                        .map(acc -> BankAccountDTO.builder()
+                                .id(acc.getId())
+                                .bankName(acc.getBankName())
+                                .accountNumber(acc.getAccountNumber())
+                                .accountHolder(acc.getAccountHolder())
+                                .build())
+                        .toList() : java.util.Collections.emptyList())
                 .build();
     }
 }

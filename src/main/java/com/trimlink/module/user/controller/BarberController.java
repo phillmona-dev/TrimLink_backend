@@ -21,6 +21,7 @@ import java.util.UUID;
 public class BarberController {
 
     private final BarberProfileRepository barberProfileRepository;
+    private final com.trimlink.module.booking.repository.AppointmentRepository appointmentRepository;
 
     @Operation(summary = "Get barber profile by ID")
     @GetMapping("/{id}")
@@ -28,6 +29,10 @@ public class BarberController {
     public ResponseEntity<ApiResponse<BarberResponse>> getById(@PathVariable UUID id) {
         BarberProfile barber = barberProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Barber", "id", id));
-        return ResponseEntity.ok(ApiResponse.ok(BarberResponse.from(barber)));
+        
+        boolean isBusy = appointmentRepository.existsByBarberIdAndStatusAndDeletedFalse(
+                barber.getId(), com.trimlink.module.booking.entity.AppointmentStatus.IN_PROGRESS);
+        
+        return ResponseEntity.ok(ApiResponse.ok(BarberResponse.from(barber, isBusy ? "BUSY" : "IDLE")));
     }
 }

@@ -7,10 +7,6 @@ import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 
-/**
- * Standardized API response wrapper used across all endpoints.
- * Ensures consistent envelope format: { success, status, message, data, timestamp }
- */
 @Getter
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)

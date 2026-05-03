@@ -40,6 +40,36 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     /**
      * Customer's appointment history with JOIN FETCH to avoid N+1.
      */
+    @Query(value = """
+            SELECT a FROM Appointment a
+            JOIN FETCH a.service s
+            JOIN FETCH a.barber b
+            JOIN FETCH b.user u
+            JOIN FETCH a.shop sh
+            WHERE a.customer.id = :customerId
+              AND a.deleted = false
+              AND a.scheduledStart >= :since
+              AND (LOWER(sh.name) LIKE LOWER(CONCAT('%', :query, '%')) 
+                   OR LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%')))
+            """,
+            countQuery = """
+            SELECT COUNT(a) FROM Appointment a
+            WHERE a.customer.id = :customerId
+              AND a.deleted = false
+              AND a.scheduledStart >= :since
+              AND (LOWER(a.shop.name) LIKE LOWER(CONCAT('%', :query, '%')) 
+                   OR LOWER(a.service.name) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(a.barber.user.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(a.barber.user.lastName) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<Appointment> searchByCustomerId(
+            @Param("customerId") UUID customerId,
+            @Param("query") String query,
+            @Param("since") LocalDateTime since,
+            Pageable pageable);
+
     @Query("""
             SELECT a FROM Appointment a
             JOIN FETCH a.service s
@@ -102,6 +132,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     long countByDeletedFalseAndScheduledStartBetween(LocalDateTime from, LocalDateTime to);
 
     long countByStatusAndDeletedFalse(AppointmentStatus status);
+
+    boolean existsByBarberIdAndStatusAndDeletedFalse(UUID barberId, AppointmentStatus status);
 
     long countByBarberIdAndStatusAndDeletedFalse(UUID barberId, AppointmentStatus status);
 

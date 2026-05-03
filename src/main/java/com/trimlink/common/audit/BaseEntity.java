@@ -12,10 +12,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Base entity providing audit fields, UUID primary key, and soft-delete support.
- * All domain entities must extend this class.
- */
 @Getter
 @Setter
 @MappedSuperclass

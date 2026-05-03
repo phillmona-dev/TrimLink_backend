@@ -25,4 +25,6 @@ public class CreateAppointmentRequest {
 
     @Size(max = 500, message = "Notes must not exceed 500 characters")
     private String notes;
+
+    private String receiptImageUrl;
 }

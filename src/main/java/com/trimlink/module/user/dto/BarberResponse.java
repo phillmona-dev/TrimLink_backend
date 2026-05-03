@@ -18,9 +18,14 @@ public class BarberResponse {
     private BigDecimal averageRating;
     private int totalReviews;
     private boolean available;
+    private String status; // IDLE or BUSY
     private List<BarberServiceAssignmentResponse> serviceAssignments;
 
     public static BarberResponse from(BarberProfile profile) {
+        return from(profile, "IDLE");
+    }
+
+    public static BarberResponse from(BarberProfile profile, String status) {
         if (profile == null) return null;
         
         List<BarberServiceAssignmentResponse> assignments = profile.getServiceAssignments() != null 
@@ -49,6 +54,7 @@ public class BarberResponse {
                 .averageRating(profile.getAverageRating())
                 .totalReviews(profile.getTotalReviews())
                 .available(profile.isAvailable())
+                .status(status)
                 .serviceAssignments(assignments)
                 .build();
     }
