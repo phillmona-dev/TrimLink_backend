@@ -78,6 +78,9 @@ public class Appointment extends BaseEntity {
     @Column(name = "cancellation_reason", length = 300)
     private String cancellationReason;
 
+    @Column(name = "receipt_image_url", length = 500)
+    private String receiptImageUrl;
+
     // ─── FSM transitions ───────────────────────────────────────────────────
 
     public void confirm() {
@@ -85,9 +88,15 @@ public class Appointment extends BaseEntity {
         this.status = AppointmentStatus.CONFIRMED;
     }
 
+    public void startService() {
+        validateTransition(AppointmentStatus.IN_PROGRESS, AppointmentStatus.CONFIRMED);
+        this.status = AppointmentStatus.IN_PROGRESS;
+        this.actualStart = LocalDateTime.now();
+    }
+
     public void complete() {
         validateTransition(AppointmentStatus.COMPLETED,
-                AppointmentStatus.CONFIRMED, AppointmentStatus.PENDING);
+                AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS, AppointmentStatus.PENDING);
         this.status = AppointmentStatus.COMPLETED;
         this.actualEnd = LocalDateTime.now();
     }

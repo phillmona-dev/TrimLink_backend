@@ -51,4 +51,12 @@ public class ReviewController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok(reviewService.listStaffReviews(staffId, pageable)));
     }
+
+    @Operation(summary = "List reviews for a shop")
+    @GetMapping("/shops/{shopId}/reviews")
+    public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> listShopReviews(
+            @PathVariable UUID shopId,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(reviewService.listShopReviews(shopId, pageable)));
+    }
 }

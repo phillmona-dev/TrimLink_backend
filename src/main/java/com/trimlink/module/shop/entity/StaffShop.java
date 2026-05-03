@@ -61,4 +61,8 @@ public class StaffShop extends BaseEntity {
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<WorkingHours> workingHours = new ArrayList<>();
+
+    @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ShopBankAccount> bankAccounts = new ArrayList<>();
 }

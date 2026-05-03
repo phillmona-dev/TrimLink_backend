@@ -18,9 +18,14 @@ public class StaffResponse {
     private BigDecimal averageRating;
     private int totalReviews;
     private boolean available;
+    private String status; // IDLE or BUSY
     private List<StaffServiceAssignmentResponse> serviceAssignments;
 
     public static StaffResponse from(StaffProfile profile) {
+        return from(profile, "IDLE");
+    }
+
+    public static StaffResponse from(StaffProfile profile, String status) {
         if (profile == null) return null;
         
         List<StaffServiceAssignmentResponse> assignments = profile.getServiceAssignments() != null 
@@ -49,6 +54,7 @@ public class StaffResponse {
                 .averageRating(profile.getAverageRating())
                 .totalReviews(profile.getTotalReviews())
                 .available(profile.isAvailable())
+                .status(status)
                 .serviceAssignments(assignments)
                 .build();
     }

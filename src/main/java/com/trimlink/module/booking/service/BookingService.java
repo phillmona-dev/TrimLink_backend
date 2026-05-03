@@ -5,10 +5,15 @@ import com.trimlink.common.exception.ConflictException;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.messaging.event.BookingCreatedEvent;
 import com.trimlink.messaging.producer.EventProducer;
-import com.trimlink.module.booking.dto.*;
+import com.trimlink.module.booking.dto.AppointmentResponse;
+import com.trimlink.module.booking.dto.CreateAppointmentRequest;
+import com.trimlink.module.booking.dto.SlotAvailabilityRequest;
+import com.trimlink.module.booking.dto.TimeSlotResponse;
 import com.trimlink.module.booking.entity.Appointment;
 import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
+import com.trimlink.module.booking.repository.ReviewRepository;
+import com.trimlink.module.notification.service.WebSocketNotificationService;
 import com.trimlink.module.service.entity.Service;
 import com.trimlink.module.service.repository.ServiceRepository;
 import com.trimlink.module.shop.entity.StaffShop;
@@ -45,7 +50,8 @@ public class BookingService {
     private final ServiceRepository serviceRepository;
     private final WorkingHoursRepository workingHoursRepository;
     private final EventProducer eventProducer;
-    private final com.trimlink.module.notification.service.WebSocketNotificationService webSocketNotificationService;
+    private final ReviewRepository reviewRepository;
+    private final WebSocketNotificationService webSocketNotificationService;
 
     // ─── Create Booking ────────────────────────────────────────────────────
 
@@ -86,6 +92,7 @@ public class BookingService {
                 .scheduledEnd(end)
                 .priceCharged(price)
                 .notes(req.getNotes())
+                .receiptImageUrl(req.getReceiptImageUrl())
                 .status(AppointmentStatus.PENDING)
                 .build();
 
@@ -197,6 +204,16 @@ public class BookingService {
     }
 
     @Transactional
+    public AppointmentResponse startAppointment(UUID appointmentId) {
+        Appointment appt = findAppointment(appointmentId);
+        appt.startService();
+        Appointment saved = appointmentRepository.save(appt);
+        // Notify customer that service has started
+        webSocketNotificationService.notifyCustomer(saved.getCustomer().getId(), toResponse(saved));
+        return toResponse(saved);
+    }
+
+    @Transactional
     public AppointmentResponse completeAppointment(UUID appointmentId) {
         Appointment appt = findAppointment(appointmentId);
         appt.complete();
@@ -224,8 +241,11 @@ public class BookingService {
     // ─── Queries ───────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public Page<AppointmentResponse> getCustomerAppointments(UUID customerId, Pageable pageable) {
-        return appointmentRepository.findByCustomerId(customerId, pageable)
+    public Page<AppointmentResponse> getCustomerAppointments(UUID customerId, String query, LocalDateTime since, Pageable pageable) {
+        if (query == null) query = "";
+        if (since == null) since = LocalDateTime.now().minusMonths(1);
+        
+        return appointmentRepository.searchByCustomerId(customerId, query, since, pageable)
                 .map(this::toResponse);
     }
 
@@ -285,6 +305,8 @@ public class BookingService {
                 .priceCharged(a.getPriceCharged())
                 .notes(a.getNotes())
                 .cancellationReason(a.getCancellationReason())
+                .receiptImageUrl(a.getReceiptImageUrl())
+                .reviewed(reviewRepository.existsByAppointmentId(a.getId()))
                 .createdAt(a.getCreatedAt())
                 .build();
     }

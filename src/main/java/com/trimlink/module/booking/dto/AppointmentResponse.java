@@ -39,6 +39,8 @@ public class AppointmentResponse {
     private BigDecimal priceCharged;
     private String notes;
     private String cancellationReason;
+    private String receiptImageUrl;
 
     private LocalDateTime createdAt;
+    private boolean reviewed;
 }

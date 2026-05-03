@@ -3,6 +3,7 @@ package com.trimlink.common.exception;
 import com.trimlink.common.dto.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -113,11 +114,32 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Invalid credentials"));
     }
 
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        String message = "A data integrity violation occurred.";
+        String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+        
+        if (errorMsg.contains("unique") || errorMsg.contains("already exists")) {
+            message = "A record with this information already exists.";
+            if (errorMsg.contains("users_phone_number_key") || errorMsg.contains("phone_number")) {
+                message = "This phone number is already registered.";
+            } else if (errorMsg.contains("users_username_key") || errorMsg.contains("username")) {
+                message = "This username is already taken.";
+            }
+        } else if (errorMsg.contains("check constraint") || errorMsg.contains("violates check constraint")) {
+            message = "Operation failed due to an invalid data state or unsupported status.";
+        }
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), message));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex, WebRequest request) {
         log.error("Unhandled exception at {}: {}", request.getDescription(false), ex.getMessage(), ex);
-        String message = ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred";
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), message));
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), 
+                    "An unexpected internal server error occurred. Please try again later."));
     }
 }

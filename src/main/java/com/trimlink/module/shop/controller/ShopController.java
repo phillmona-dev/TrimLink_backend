@@ -47,6 +47,7 @@ public class ShopController {
     private final UserRepository userRepository;
     private final ShopService shopService;
     private final com.trimlink.module.shop.repository.WorkingHoursRepository workingHoursRepository;
+    private final com.trimlink.module.booking.repository.AppointmentRepository appointmentRepository;
 
     // GET /shops?q=... — full-text search across name/city/address
     // GET /shops?city=... — city filter (legacy)
@@ -60,6 +61,15 @@ public class ShopController {
 
         var page = shopService.searchShops(q, city, pageable);
 
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(page)));
+    }
+
+    @Operation(summary = "List all shops (Admin only)")
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<ShopSearchResponse>>> listAll(
+            @PageableDefault(size = 50) Pageable pageable) {
+        var page = shopService.listAllShops(pageable);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(page)));
     }
 
@@ -81,7 +91,11 @@ public class ShopController {
                 .findByShopIdAndDeletedFalseAndAvailableTrueOrderByAverageRatingDesc(id);
 
         List<StaffResponse> response = staffs.stream()
-                .map(StaffResponse::from)
+                .map(s -> {
+                    boolean isBusy = appointmentRepository.existsByStaffIdAndStatusAndDeletedFalse(
+                            s.getId(), com.trimlink.module.booking.entity.AppointmentStatus.IN_PROGRESS);
+                    return StaffResponse.from(s, isBusy ? "BUSY" : "IDLE");
+                })
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.ok(response));
@@ -106,7 +120,18 @@ public class ShopController {
                 .active(true)
                 .build();
 
-        shop = shopRepository.save(shop);
+        if (req.getBankAccounts() != null) {
+            shop.setBankAccounts(req.getBankAccounts().stream()
+                    .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
+                            .shop(shop)
+                            .bankName(acc.getBankName())
+                            .accountNumber(acc.getAccountNumber())
+                            .accountHolder(acc.getAccountHolder())
+                            .build())
+                    .collect(java.util.stream.Collectors.toList()));
+        }
+
+        StaffShop savedShop = shopRepository.save(shop);
 
         // Initialize default working hours
         for (java.time.DayOfWeek day : java.time.DayOfWeek.values()) {
@@ -139,6 +164,20 @@ public class ShopController {
         shop.setLatitude(req.getLatitude());
         shop.setLongitude(req.getLongitude());
         shop.setDescription(req.getDescription());
+        
+        // Sync bank accounts
+        shop.getBankAccounts().clear();
+        if (req.getBankAccounts() != null) {
+            shop.getBankAccounts().addAll(req.getBankAccounts().stream()
+                    .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
+                            .shop(shop)
+                            .bankName(acc.getBankName())
+                            .accountNumber(acc.getAccountNumber())
+                            .accountHolder(acc.getAccountHolder())
+                            .build())
+                    .toList());
+        }
+
         return ResponseEntity.ok(ApiResponse.ok(shopRepository.save(shop)));
     }
 
@@ -153,6 +192,18 @@ public class ShopController {
         shop.setActive(false);
         shopRepository.save(shop);
         return ResponseEntity.ok(ApiResponse.ok("Shop deactivated", null));
+    }
+
+    @Operation(summary = "Activate a shop")
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable UUID id) {
+        StaffShop shop = shopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
+        shop.setActive(true);
+        shopRepository.save(shop);
+        return ResponseEntity.ok(ApiResponse.ok("Shop activated", null));
     }
 
     // ─── Owner Staff Management ──────────────────────────────────────────────
@@ -191,6 +242,69 @@ public class ShopController {
 
         UUID shopId = owner.getStaffProfile().getShop().getId();
         return ResponseEntity.ok(ApiResponse.ok(shopService.getStaffPerformance(shopId)));
+    }
+
+    @Operation(summary = "Get my shop details")
+    @GetMapping("/my-shop")
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<ShopSearchResponse>> getMyShop(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+        User owner = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
+        
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
+            throw new ResourceNotFoundException("StaffShop", "ownerId", principal.getUserId());
+        }
+        
+        StaffShop shop = owner.getStaffProfile().getShop();
+        String ownerName = owner.getFirstName() + " " + owner.getLastName();
+        String ownerPhone = owner.getPhoneNumber();
+        
+        return ResponseEntity.ok(ApiResponse.ok(ShopSearchResponse.from(shop, ownerName, ownerPhone)));
+    }
+
+    @Operation(summary = "Update my shop details")
+    @PutMapping("/my-shop")
+    @PreAuthorize("hasRole('OWNER')")
+    @Transactional
+    public ResponseEntity<ApiResponse<ShopSearchResponse>> updateMyShop(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody ShopRequest req) {
+        User owner = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
+        
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
+            throw new ResourceNotFoundException("StaffShop", "ownerId", principal.getUserId());
+        }
+        
+        StaffShop shop = owner.getStaffProfile().getShop();
+        shop.setName(req.getName());
+        shop.setPhone(req.getPhone());
+        shop.setAddress(req.getAddress());
+        shop.setCity(req.getCity());
+        shop.setLatitude(req.getLatitude());
+        shop.setLongitude(req.getLongitude());
+        shop.setDescription(req.getDescription());
+        
+        // Sync bank accounts
+        shop.getBankAccounts().clear();
+        if (req.getBankAccounts() != null) {
+            shop.getBankAccounts().addAll(req.getBankAccounts().stream()
+                    .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
+                            .shop(shop)
+                            .bankName(acc.getBankName())
+                            .accountNumber(acc.getAccountNumber())
+                            .accountHolder(acc.getAccountHolder())
+                            .build())
+                    .toList());
+        }
+        
+        StaffShop savedShop = shopRepository.save(shop);
+        String ownerName = owner.getFirstName() + " " + owner.getLastName();
+        String ownerPhone = owner.getPhoneNumber();
+        
+        return ResponseEntity.ok(ApiResponse.ok(ShopSearchResponse.from(savedShop, ownerName, ownerPhone)));
     }
 
     @Operation(summary = "Get weekly performance report for all staff")
@@ -393,5 +507,13 @@ public class ShopController {
         private Double longitude;
         @Size(max = 500)
         private String description;
+        private List<BankAccountRequest> bankAccounts;
+
+        @Data
+        public static class BankAccountRequest {
+            private String bankName;
+            private String accountNumber;
+            private String accountHolder;
+        }
     }
 }

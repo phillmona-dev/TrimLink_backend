@@ -11,6 +11,7 @@ import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
 import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
+import com.trimlink.module.notification.service.WebSocketNotificationService;
 import com.trimlink.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,11 +36,12 @@ public class AuthService {
     private final StaffProfileRepository staffProfileRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
+    private final WebSocketNotificationService notificationService;
 
     @Value("${trimlink.security.jwt.access-token-expiry:900000}")
     private long accessTokenExpiry;
 
-    // ─── Customer Register ──────────────────────────────────────────────────
+    // --- Customer Register ---
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -77,7 +80,7 @@ public class AuthService {
                 .build();
     }
 
-    // ─── Shop Register ──────────────────────────────────────────────────────
+    // --- Shop Register ---
 
     @Transactional
     public AuthResponse registerShop(ShopRegistrationRequest request) {
@@ -123,6 +126,19 @@ public class AuthService {
         log.info("Shop registered (pending approval): id={}, username={}, shopName={}", 
                  user.getId(), user.getUsername(), shop.getName());
 
+        // 4. Notify Admins
+        try {
+            notificationService.notifyAdmins(Map.of(
+                "type", "SHOP_REGISTRATION",
+                "id", user.getId().toString(),
+                "shopName", shop.getName(),
+                "ownerName", user.getFirstName() + " " + user.getLastName(),
+                "timestamp", System.currentTimeMillis()
+            ));
+        } catch (Exception e) {
+            log.error("Failed to send websocket notification to admins", e);
+        }
+
         // Do not issue JWT token since login is blocked until approved
         return AuthResponse.builder()
                 .userId(user.getId())
@@ -135,7 +151,7 @@ public class AuthService {
                 .build();
     }
 
-    // ─── Login ─────────────────────────────────────────────────────────────
+    // --- Login ---
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
@@ -158,6 +174,13 @@ public class AuthService {
             throw new OtpException("Your account has been deactivated. Contact support.");
         }
 
+        // Check if shop is active for Barbers and Owners
+        if ((user.getRole() == Role.BARBER || user.getRole() == Role.OWNER) && 
+            user.getBarberProfile() != null && user.getBarberProfile().getShop() != null && 
+            !user.getBarberProfile().getShop().isActive()) {
+            throw new OtpException("Your shop has been deactivated. Please contact the system admin.");
+        }
+
         String accessToken = jwtTokenProvider.generateAccessToken(
                 user.getId(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
@@ -175,7 +198,7 @@ public class AuthService {
                 .build();
     }
 
-    // ─── Token Refresh ─────────────────────────────────────────────────────
+    // --- Token Refresh ---
 
     @Transactional(readOnly = true)
     public AuthResponse refreshToken(RefreshTokenRequest request) {
@@ -208,7 +231,7 @@ public class AuthService {
                 .build();
     }
 
-    // ─── Helpers ───────────────────────────────────────────────────────────
+    // --- Helpers ---
 
     public static String normalizePhone(String phone) {
         if (phone == null) return null;

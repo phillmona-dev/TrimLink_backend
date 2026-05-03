@@ -33,4 +33,19 @@ public class WebSocketNotificationService {
         log.info("Sending websocket message to {}", destination);
         messagingTemplate.convertAndSend(destination, payload);
     }
+
+    /**
+     * Broadcasts a notification payload to the admin topic for pending approvals.
+     * Admins should subscribe to: /topic/admin/approvals
+     */
+    public void notifyAdmins(Object payload) {
+        String destination = "/topic/admin/approvals";
+        log.info("Sending websocket message to {}", destination);
+        messagingTemplate.convertAndSend(destination, payload);
+    }
+
+    public void broadcast(String destination, Object payload) {
+        log.info("Broadcasting to {}: {}", destination, payload);
+        messagingTemplate.convertAndSend(destination, payload);
+    }
 }

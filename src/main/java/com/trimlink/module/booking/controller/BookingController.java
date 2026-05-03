@@ -2,7 +2,10 @@ package com.trimlink.module.booking.controller;
 
 import com.trimlink.common.dto.ApiResponse;
 import com.trimlink.common.dto.PageResponse;
-import com.trimlink.module.booking.dto.*;
+import com.trimlink.module.booking.dto.AppointmentResponse;
+import com.trimlink.module.booking.dto.CreateAppointmentRequest;
+import com.trimlink.module.booking.dto.SlotAvailabilityRequest;
+import com.trimlink.module.booking.dto.TimeSlotResponse;
 import com.trimlink.module.booking.service.BookingService;
 import com.trimlink.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,16 +65,16 @@ public class BookingController {
                 bookingService.getByIdForUser(id, principal.getUserId(), principal.getRole())));
     }
 
-    @Operation(summary = "Get my appointments (as customer)")
+    @Operation(summary = "Get current customer's appointments")
     @GetMapping("/me")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getMyAppointments(
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getMy(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @PageableDefault(size = 20, sort = "scheduledStart") Pageable pageable) {
- 
-        PageResponse<AppointmentResponse> page = PageResponse.from(
-                bookingService.getCustomerAppointments(principal.getUserId(), pageable));
-        return ResponseEntity.ok(ApiResponse.ok(page));
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime since,
+            @PageableDefault(size = 10, sort = "scheduledStart", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(
+                bookingService.getCustomerAppointments(principal.getUserId(), query, since, pageable))));
     }
 
     @Operation(summary = "Get my appointments (as staff/owner)")
@@ -93,6 +96,14 @@ public class BookingController {
     @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> confirm(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.confirmAppointment(id)));
+    }
+
+    // PATCH /bookings/{id}/start
+    @Operation(summary = "Start appointment service (barber)")
+    @PatchMapping("/{id}/start")
+    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> start(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.startAppointment(id)));
     }
 
     // PATCH /bookings/{id}/complete

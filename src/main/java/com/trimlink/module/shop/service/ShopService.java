@@ -47,28 +47,31 @@ public class ShopService {
                     ? shopRepository.findByCityAndActiveTrue(city, pageable)
                     : shopRepository.findByActiveTrue(pageable);
 
-        return shops.map(shop -> {
-            // Find the owner in the staffs list (which might be lazily loaded but we are in a transaction)
-            String ownerName = "Unknown";
-            String ownerPhone = "";
-            
-            // We can't rely on shop.getStaffs() because of @JsonIgnore and LAZY loading issues if not handled carefully
-            // But here we are in @Transactional(readOnly = true), so we can access it if we want, 
-            // OR we can query the staffProfileRepository specifically for the owner of this shop.
-            
-            List<StaffProfile> owners = staffProfileRepository.findByShopIdAndDeletedFalse(shop.getId(), Pageable.unpaged())
-                    .getContent().stream()
-                    .filter(b -> b.getUser().getRole() == Role.OWNER)
-                    .toList();
-            
-            if (!owners.isEmpty()) {
-                StaffProfile owner = owners.get(0);
-                ownerName = owner.getUser().getFirstName() + " " + owner.getUser().getLastName();
-                ownerPhone = owner.getUser().getPhoneNumber();
-            }
-            
-            return ShopSearchResponse.from(shop, ownerName, ownerPhone);
-        });
+        return shops.map(this::mapToSearchResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ShopSearchResponse> listAllShops(Pageable pageable) {
+        Page<StaffShop> shops = shopRepository.findAll(pageable);
+        return shops.map(this::mapToSearchResponse);
+    }
+
+    private ShopSearchResponse mapToSearchResponse(StaffShop shop) {
+        String ownerName = "Unknown";
+        String ownerPhone = "";
+        
+        List<StaffProfile> owners = staffProfileRepository.findByShopIdAndDeletedFalse(shop.getId(), Pageable.unpaged())
+                .getContent().stream()
+                .filter(b -> b.getUser().getRole() == Role.OWNER)
+                .toList();
+        
+        if (!owners.isEmpty()) {
+            StaffProfile owner = owners.get(0);
+            ownerName = owner.getUser().getFirstName() + " " + owner.getUser().getLastName();
+            ownerPhone = owner.getUser().getPhoneNumber();
+        }
+        
+        return ShopSearchResponse.from(shop, ownerName, ownerPhone);
     }
 
     @Transactional(readOnly = true)

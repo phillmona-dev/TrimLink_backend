@@ -86,6 +86,13 @@ public class ReviewService {
         return PageResponse.from(page.map(this::toResponse));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<ReviewResponse> listShopReviews(UUID shopId, Pageable pageable) {
+        var page = reviewRepository.findByStaffProfileShopId(shopId, PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort()));
+        return PageResponse.from(page.map(this::toResponse));
+    }
+
     private void refreshStaffRatingSummary(StaffProfile staff) {
         BigDecimal average = reviewRepository.calculateAverageRating(staff.getId());
         long total = reviewRepository.countByStaffProfileId(staff.getId());
