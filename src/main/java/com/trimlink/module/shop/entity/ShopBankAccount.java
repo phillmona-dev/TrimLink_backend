@@ -17,7 +17,7 @@ public class ShopBankAccount extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
-    private BarberShop shop;
+    private StaffShop shop;
 
     @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;

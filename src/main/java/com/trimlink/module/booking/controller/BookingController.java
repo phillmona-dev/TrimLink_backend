@@ -99,9 +99,9 @@ public class BookingController {
     }
 
     // PATCH /bookings/{id}/start
-    @Operation(summary = "Start appointment service (barber)")
+    @Operation(summary = "Start appointment service (staff)")
     @PatchMapping("/{id}/start")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> start(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.startAppointment(id)));
     }

@@ -1,7 +1,7 @@
 -- Create shop_bank_accounts table
 CREATE TABLE shop_bank_accounts (
     id              UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_id         UUID         NOT NULL REFERENCES barber_shops(id) ON DELETE CASCADE,
+    shop_id         UUID         NOT NULL REFERENCES staff_shops(id) ON DELETE CASCADE,
     bank_name       VARCHAR(100) NOT NULL,
     account_number  VARCHAR(50)  NOT NULL,
     account_holder  VARCHAR(200),
@@ -16,12 +16,12 @@ CREATE TABLE shop_bank_accounts (
 
 CREATE INDEX idx_shop_bank_accounts_shop ON shop_bank_accounts(shop_id);
 
--- Migration: Copy existing bank details from barber_shops to the new table
+-- Migration: Copy existing bank details from staff_shops to the new table
 INSERT INTO shop_bank_accounts (shop_id, bank_name, account_number, active)
 SELECT id, bank_name, account_number, TRUE
-FROM barber_shops
+FROM staff_shops
 WHERE bank_name IS NOT NULL AND account_number IS NOT NULL;
 
--- Optional: Remove old columns from barber_shops (wait until verification)
--- ALTER TABLE barber_shops DROP COLUMN bank_name;
--- ALTER TABLE barber_shops DROP COLUMN account_number;
+-- Optional: Remove old columns from staff_shops (wait until verification)
+-- ALTER TABLE staff_shops DROP COLUMN bank_name;
+-- ALTER TABLE staff_shops DROP COLUMN account_number;

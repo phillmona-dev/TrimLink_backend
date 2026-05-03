@@ -16,6 +16,7 @@ import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
 import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
+import com.trimlink.module.user.entity.ApprovalStatus;
 import com.trimlink.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +26,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +34,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,11 +43,13 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/shops")
 @RequiredArgsConstructor
+@Slf4j
 public class ShopController {
 
     private final StaffShopRepository shopRepository;
     private final StaffProfileRepository staffProfileRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final ShopService shopService;
     private final com.trimlink.module.shop.repository.WorkingHoursRepository workingHoursRepository;
     private final com.trimlink.module.booking.repository.AppointmentRepository appointmentRepository;
@@ -363,25 +368,51 @@ public class ShopController {
             throw new RuntimeException("You are not associated with any shop");
         }
 
-        User staffUser = userRepository.findByPhoneNumber(req.getPhoneNumber())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "phone", req.getPhoneNumber()));
+        try {
+            User staffUser = userRepository.findByPhoneNumber(req.getPhoneNumber()).orElse(null);
 
-        StaffProfile profile = staffProfileRepository.findByUserId(staffUser.getId())
-                .orElse(StaffProfile.builder()
-                        .user(staffUser)
-                        .build());
+            if (staffUser == null) {
+                // Check if username is already taken
+                if (userRepository.existsByUsername(req.getUsername())) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error(400, "Username '" + req.getUsername() + "' is already taken"));
+                }
+                
+                staffUser = User.builder()
+                        .phoneNumber(req.getPhoneNumber())
+                        .username(req.getUsername())
+                        .password(passwordEncoder.encode(req.getPassword()))
+                        .firstName(req.getFirstName())
+                        .lastName(req.getLastName())
+                        .role(com.trimlink.module.user.entity.Role.STAFF)
+                        .active(true)
+                        .approvalStatus(ApprovalStatus.APPROVED)
+                        .build();
+                staffUser = userRepository.save(staffUser);
+            }
 
-        profile.setShop(owner.getStaffProfile().getShop());
-        profile.setAvailable(true);
-        staffProfileRepository.save(profile);
+            final User finalStaffUser = staffUser;
+            StaffProfile profile = staffProfileRepository.findByUserId(staffUser.getId())
+                    .orElseGet(() -> StaffProfile.builder()
+                            .user(finalStaffUser)
+                            .build());
 
-        // Ensure user has STAFF role if they were a CUSTOMER
-        if (staffUser.getRole() == com.trimlink.module.user.entity.Role.CUSTOMER) {
-            staffUser.setRole(com.trimlink.module.user.entity.Role.STAFF);
-            userRepository.save(staffUser);
+            profile.setShop(owner.getStaffProfile().getShop());
+            profile.setAvailable(true);
+            profile = staffProfileRepository.save(profile);
+            
+            staffUser.setStaffProfile(profile);
+            
+            // Ensure user has STAFF role if they were a CUSTOMER
+            if (staffUser.getRole() == com.trimlink.module.user.entity.Role.CUSTOMER) {
+                staffUser.setRole(com.trimlink.module.user.entity.Role.STAFF);
+                staffUser = userRepository.save(staffUser);
+            }
+
+            return ResponseEntity.ok(ApiResponse.ok("Staff added successfully", UserResponse.from(staffUser)));
+        } catch (Exception e) {
+            log.error("Failed to add staff: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(ApiResponse.error(500, "Failed to add staff: " + e.getMessage()));
         }
-
-        return ResponseEntity.ok(ApiResponse.ok("Staff added successfully", UserResponse.from(staffUser)));
     }
 
     @Operation(summary = "Toggle staff member availability")
@@ -473,6 +504,20 @@ public class ShopController {
         @NotBlank
         @Size(min = 10, max = 15)
         private String phoneNumber;
+
+        @NotBlank
+        private String firstName;
+
+        @NotBlank
+        private String lastName;
+
+        @NotBlank
+        @Size(min = 3, max = 50)
+        private String username;
+
+        @NotBlank
+        @Size(min = 6)
+        private String password;
     }
 
     @Data

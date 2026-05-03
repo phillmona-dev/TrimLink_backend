@@ -174,10 +174,10 @@ public class AuthService {
             throw new OtpException("Your account has been deactivated. Contact support.");
         }
 
-        // Check if shop is active for Barbers and Owners
-        if ((user.getRole() == Role.BARBER || user.getRole() == Role.OWNER) && 
-            user.getBarberProfile() != null && user.getBarberProfile().getShop() != null && 
-            !user.getBarberProfile().getShop().isActive()) {
+        // Check if shop is active for Staffs and Owners
+        if ((user.getRole() == Role.STAFF || user.getRole() == Role.OWNER) && 
+            user.getStaffProfile() != null && user.getStaffProfile().getShop() != null && 
+            !user.getStaffProfile().getShop().isActive()) {
             throw new OtpException("Your shop has been deactivated. Please contact the system admin.");
         }
 

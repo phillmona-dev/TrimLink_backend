@@ -21,6 +21,7 @@ import java.util.UUID;
 public class StaffController {
 
     private final StaffProfileRepository staffProfileRepository;
+    private final com.trimlink.module.booking.repository.AppointmentRepository appointmentRepository;
 
     @Operation(summary = "Get staff profile by ID")
     @GetMapping("/{id}")
@@ -28,6 +29,10 @@ public class StaffController {
     public ResponseEntity<ApiResponse<StaffResponse>> getById(@PathVariable UUID id) {
         StaffProfile staff = staffProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", id));
-        return ResponseEntity.ok(ApiResponse.ok(StaffResponse.from(staff)));
+        
+        boolean isBusy = appointmentRepository.existsByStaffIdAndStatusAndDeletedFalse(
+                staff.getId(), com.trimlink.module.booking.entity.AppointmentStatus.IN_PROGRESS);
+        
+        return ResponseEntity.ok(ApiResponse.ok(StaffResponse.from(staff, isBusy ? "BUSY" : "IDLE")));
     }
 }
