@@ -49,7 +49,7 @@ public class NotificationConsumer {
                     "TrimLink: Hi %s, your appointment with %s at %s is pending confirmation for %s. " +
                     "Price: %.2f ETB.",
                     event.getCustomerName(),
-                    event.getBarberName(),
+                    event.getStaffName(),
                     event.getShopName(),
                     event.getScheduledStart(),
                     event.getPriceCharged()
@@ -57,7 +57,7 @@ public class NotificationConsumer {
             smsService.send(event.getCustomerPhone(), message);
             pushNotificationService.sendToUser(event.getCustomerId(), PushMessage.builder()
                     .title("Booking Pending")
-                    .body(String.format("%s with %s at %s", event.getServiceName(), event.getBarberName(), event.getScheduledStart()))
+                    .body(String.format("%s with %s at %s", event.getServiceName(), event.getStaffName(), event.getScheduledStart()))
                     .data(Map.of(
                             "type", "BOOKING_CREATED",
                             "appointmentId", event.getAppointmentId().toString(),
@@ -65,8 +65,8 @@ public class NotificationConsumer {
                     ))
                     .build());
                     
-            // Notify Barber via WebSocket
-            webSocketNotificationService.notifyBarber(event.getBarberId(), Map.of(
+            // Notify Staff via WebSocket
+            webSocketNotificationService.notifyStaff(event.getStaffId(), Map.of(
                     "type", "BOOKING_CREATED",
                     "appointmentId", event.getAppointmentId().toString(),
                     "customerName", event.getCustomerName(),
@@ -167,7 +167,7 @@ public class NotificationConsumer {
                     "TrimLink: You joined the queue at %s. Position: #%d. Est. wait: %d min.",
                     event.getShopName(), event.getPosition(), event.getEstimatedWaitMinutes());
             case "CALLED" -> String.format(
-                    "TrimLink: %s is calling you next! Please proceed to the barber now.",
+                    "TrimLink: %s is calling you next! Please proceed to the staff now.",
                     event.getShopName());
             case "CANCELLED" -> String.format(
                     "TrimLink: Your queue entry at %s has been cancelled.", event.getShopName());

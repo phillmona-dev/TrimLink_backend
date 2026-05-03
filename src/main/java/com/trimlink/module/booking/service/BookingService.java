@@ -11,13 +11,13 @@ import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.service.entity.Service;
 import com.trimlink.module.service.repository.ServiceRepository;
-import com.trimlink.module.shop.entity.BarberShop;
+import com.trimlink.module.shop.entity.StaffShop;
 import com.trimlink.module.shop.entity.WorkingHours;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import com.trimlink.module.shop.repository.WorkingHoursRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +40,8 @@ public class BookingService {
 
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
-    private final BarberProfileRepository barberProfileRepository;
-    private final BarberShopRepository barberShopRepository;
+    private final StaffProfileRepository staffProfileRepository;
+    private final StaffShopRepository staffShopRepository;
     private final ServiceRepository serviceRepository;
     private final WorkingHoursRepository workingHoursRepository;
     private final EventProducer eventProducer;
@@ -52,8 +52,8 @@ public class BookingService {
     @Transactional
     public AppointmentResponse createAppointment(UUID customerId, CreateAppointmentRequest req) {
         User customer         = findUser(customerId);
-        BarberProfile barber  = findBarber(req.getBarberId());
-        BarberShop shop       = findShop(req.getShopId());
+        StaffProfile staff  = findStaff(req.getStaffId());
+        StaffShop shop       = findShop(req.getShopId());
         Service service       = findService(req.getServiceId());
 
         LocalDateTime start   = req.getScheduledStart();
@@ -64,14 +64,14 @@ public class BookingService {
 
         // 2. Check for overlapping bookings (pessimistic lock inside repo)
         List<Appointment> overlaps = appointmentRepository.findOverlapping(
-                barber.getId(), start, end);
+                staff.getId(), start, end);
         if (!overlaps.isEmpty()) {
             throw new ConflictException(
                     "The selected time slot is already booked. Please choose another.");
         }
 
-        // 3. Determine effective price (barber override or service base)
-        java.math.BigDecimal price = barber.getServiceAssignments().stream()
+        // 3. Determine effective price (staff override or service base)
+        java.math.BigDecimal price = staff.getServiceAssignments().stream()
                 .filter(a -> a.getService().getId().equals(service.getId()) && a.isActive())
                 .map(a -> a.getCustomPrice() != null ? a.getCustomPrice() : service.getBasePrice())
                 .findFirst()
@@ -79,7 +79,7 @@ public class BookingService {
 
         Appointment appointment = Appointment.builder()
                 .customer(customer)
-                .barber(barber)
+                .staff(staff)
                 .shop(shop)
                 .service(service)
                 .scheduledStart(start)
@@ -94,11 +94,11 @@ public class BookingService {
         // 4. Publish async event for notifications
         eventProducer.publishBookingCreated(BookingCreatedEvent.from(appointment));
 
-        // 5. Notify barber via websocket
-        webSocketNotificationService.notifyBarber(barber.getUser().getId(), toResponse(appointment));
+        // 5. Notify staff via websocket
+        webSocketNotificationService.notifyStaff(staff.getUser().getId(), toResponse(appointment));
 
-        log.info("Appointment created: id={}, customer={}, barber={}, start={}",
-                appointment.getId(), customerId, barber.getId(), start);
+        log.info("Appointment created: id={}, customer={}, staff={}, start={}",
+                appointment.getId(), customerId, staff.getId(), start);
 
         return toResponse(appointment);
     }
@@ -106,7 +106,7 @@ public class BookingService {
     // ─── Available Slot Generation ─────────────────────────────────────────
 
     /**
-     * Generates all possible time slots for a barber on a day,
+     * Generates all possible time slots for a staff on a day,
      * marking each as available or taken.
      *
      * Algorithm:
@@ -119,20 +119,20 @@ public class BookingService {
      */
     @Transactional(readOnly = true)
     public List<TimeSlotResponse> getAvailableSlots(SlotAvailabilityRequest req) {
-        BarberProfile barber = findBarber(req.getBarberId());
+        StaffProfile staff = findStaff(req.getStaffId());
         Service service      = findService(req.getServiceId());
         LocalDate date       = req.getDate();
 
-        // Fetch existing appointments for the barber on that day
+        // Fetch existing appointments for the staff on that day
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd   = date.atTime(LocalTime.MAX);
 
-        List<Appointment> existing = appointmentRepository.findBarberDaySchedule(
-                barber.getId(), dayStart, dayEnd);
+        List<Appointment> existing = appointmentRepository.findStaffDaySchedule(
+                staff.getId(), dayStart, dayEnd);
 
         // Get shop working hours for the day
         WorkingHours hours = workingHoursRepository
-                .findByShopIdAndDayOfWeek(barber.getShop().getId(), date.getDayOfWeek())
+                .findByShopIdAndDayOfWeek(staff.getShop().getId(), date.getDayOfWeek())
                 .orElseThrow(() -> new BusinessException("Shop is closed on " + date.getDayOfWeek()));
 
         if (hours.isClosed()) {
@@ -230,8 +230,8 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AppointmentResponse> getBarberAppointments(UUID barberUserId, AppointmentStatus status, Pageable pageable) {
-        return appointmentRepository.findByBarberUserIdAndStatus(barberUserId, status, pageable)
+    public Page<AppointmentResponse> getStaffAppointments(UUID staffUserId, AppointmentStatus status, Pageable pageable) {
+        return appointmentRepository.findByStaffUserIdAndStatus(staffUserId, status, pageable)
                 .map(this::toResponse);
     }
 
@@ -249,7 +249,7 @@ public class BookingService {
 
     // ─── Helpers ───────────────────────────────────────────────────────────
 
-    private void validateShopIsOpen(BarberShop shop, LocalDateTime requestedStart) {
+    private void validateShopIsOpen(StaffShop shop, LocalDateTime requestedStart) {
         workingHoursRepository
                 .findByShopIdAndDayOfWeek(shop.getId(), requestedStart.getDayOfWeek())
                 .ifPresentOrElse(hours -> {
@@ -269,8 +269,8 @@ public class BookingService {
                 .customerId(a.getCustomer().getId())
                 .customerName(a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName())
                 .customerPhone(a.getCustomer().getPhoneNumber())
-                .barberId(a.getBarber().getId())
-                .barberName(a.getBarber().getUser().getFirstName() + " " + a.getBarber().getUser().getLastName())
+                .staffId(a.getStaff().getId())
+                .staffName(a.getStaff().getUser().getFirstName() + " " + a.getStaff().getUser().getLastName())
                 .shopId(a.getShop().getId())
                 .shopName(a.getShop().getName())
                 .shopAddress(a.getShop().getAddress())
@@ -295,8 +295,8 @@ public class BookingService {
         }
 
         boolean isCustomer = appointment.getCustomer().getId().equals(requesterId);
-        boolean isAssignedBarber = appointment.getBarber().getUser().getId().equals(requesterId);
-        if (!isCustomer && !isAssignedBarber) {
+        boolean isAssignedStaff = appointment.getStaff().getUser().getId().equals(requesterId);
+        if (!isCustomer && !isAssignedStaff) {
             throw new AccessDeniedException("You are not allowed to access this appointment.");
         }
     }
@@ -306,14 +306,14 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
     }
 
-    private BarberProfile findBarber(UUID id) {
-        return barberProfileRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", id));
+    private StaffProfile findStaff(UUID id) {
+        return staffProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", id));
     }
 
-    private BarberShop findShop(UUID id) {
-        return barberShopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
+    private StaffShop findShop(UUID id) {
+        return staffShopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
     }
 
     private Service findService(UUID id) {

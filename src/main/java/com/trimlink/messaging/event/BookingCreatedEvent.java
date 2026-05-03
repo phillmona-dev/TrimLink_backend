@@ -16,8 +16,8 @@ public class BookingCreatedEvent {
     private UUID customerId;
     private String customerPhone;
     private String customerName;
-    private UUID barberId;
-    private String barberName;
+    private UUID staffId;
+    private String staffName;
     private String shopName;
     private String serviceName;
     private LocalDateTime scheduledStart;
@@ -30,8 +30,8 @@ public class BookingCreatedEvent {
                 .customerId(a.getCustomer().getId())
                 .customerPhone(a.getCustomer().getPhoneNumber())
                 .customerName(a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName())
-                .barberId(a.getBarber().getId())
-                .barberName(a.getBarber().getUser().getFirstName() + " " + a.getBarber().getUser().getLastName())
+                .staffId(a.getStaff().getId())
+                .staffName(a.getStaff().getUser().getFirstName() + " " + a.getStaff().getUser().getLastName())
                 .shopName(a.getShop().getName())
                 .serviceName(a.getService().getName())
                 .scheduledStart(a.getScheduledStart())

@@ -1,6 +1,6 @@
 package com.trimlink.module.user.repository;
 
-import com.trimlink.module.user.entity.BarberSchedule;
+import com.trimlink.module.user.entity.StaffSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,27 +12,27 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface BarberScheduleRepository extends JpaRepository<BarberSchedule, UUID> {
+public interface StaffScheduleRepository extends JpaRepository<StaffSchedule, UUID> {
 
     /** Full week schedule for scheduling dashboard. */
     @Query("""
-            SELECT s FROM BarberSchedule s
+            SELECT s FROM StaffSchedule s
             LEFT JOIN FETCH s.breakTimes b
-            WHERE s.barberProfile.id = :barberId
+            WHERE s.staffProfile.id = :staffId
               AND s.deleted = false
             ORDER BY s.dayOfWeek
             """)
-    List<BarberSchedule> findWeekSchedule(@Param("barberId") UUID barberId);
+    List<StaffSchedule> findWeekSchedule(@Param("staffId") UUID staffId);
 
     /** Single day — used during slot generation. */
     @Query("""
-            SELECT s FROM BarberSchedule s
+            SELECT s FROM StaffSchedule s
             LEFT JOIN FETCH s.breakTimes
-            WHERE s.barberProfile.id = :barberId
+            WHERE s.staffProfile.id = :staffId
               AND s.dayOfWeek = :day
               AND s.deleted = false
             """)
-    Optional<BarberSchedule> findByBarberAndDay(
-            @Param("barberId") UUID barberId,
+    Optional<StaffSchedule> findByStaffAndDay(
+            @Param("staffId") UUID staffId,
             @Param("day") DayOfWeek day);
 }

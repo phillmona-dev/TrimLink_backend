@@ -66,13 +66,13 @@ class BookingControllerIntegrationTest {
     void createAppointment_customer_returnsCreated() throws Exception {
         UUID customerId = UUID.randomUUID();
         UUID appointmentId = UUID.randomUUID();
-        UUID barberId = UUID.randomUUID();
+        UUID staffId = UUID.randomUUID();
         UUID shopId = UUID.randomUUID();
         UUID serviceId = UUID.randomUUID();
         LocalDateTime start = LocalDateTime.now().plusDays(1).withHour(10).withMinute(0).withSecond(0).withNano(0);
 
         CreateAppointmentRequest request = new CreateAppointmentRequest();
-        request.setBarberId(barberId);
+        request.setStaffId(staffId);
         request.setShopId(shopId);
         request.setServiceId(serviceId);
         request.setScheduledStart(start);
@@ -82,7 +82,7 @@ class BookingControllerIntegrationTest {
                 .thenReturn(AppointmentResponse.builder()
                         .id(appointmentId)
                         .customerId(customerId)
-                        .barberId(barberId)
+                        .staffId(staffId)
                         .shopId(shopId)
                         .serviceId(serviceId)
                         .scheduledStart(start)
@@ -108,7 +108,7 @@ class BookingControllerIntegrationTest {
     @DisplayName("Unauthenticated request cannot create appointment")
     void createAppointment_unauthenticated_returnsUnauthorized() throws Exception {
         CreateAppointmentRequest request = new CreateAppointmentRequest();
-        request.setBarberId(UUID.randomUUID());
+        request.setStaffId(UUID.randomUUID());
         request.setShopId(UUID.randomUUID());
         request.setServiceId(UUID.randomUUID());
         request.setScheduledStart(LocalDateTime.now().plusDays(1));
@@ -122,15 +122,15 @@ class BookingControllerIntegrationTest {
 
     @Test
     @DisplayName("Non-customer role cannot create appointment")
-    void createAppointment_barberRole_returnsForbidden() throws Exception {
+    void createAppointment_staffRole_returnsForbidden() throws Exception {
         CreateAppointmentRequest request = new CreateAppointmentRequest();
-        request.setBarberId(UUID.randomUUID());
+        request.setStaffId(UUID.randomUUID());
         request.setShopId(UUID.randomUUID());
         request.setServiceId(UUID.randomUUID());
         request.setScheduledStart(LocalDateTime.now().plusDays(1));
 
         mockMvc.perform(post("/bookings")
-                        .header("Authorization", bearer(UUID.randomUUID(), "BARBER"))
+                        .header("Authorization", bearer(UUID.randomUUID(), "STAFF"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden())

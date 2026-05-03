@@ -7,7 +7,7 @@ import lombok.*;
 import java.time.LocalTime;
 
 /**
- * A break (lunch, prayer, coffee) within a barber's schedule.
+ * A break (lunch, prayer, coffee) within a staff's schedule.
  * Slots that overlap a break are marked unavailable during slot generation.
  */
 @Entity
@@ -20,8 +20,8 @@ import java.time.LocalTime;
 public class BreakTime extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_schedule_id", nullable = false)
-    private BarberSchedule barberSchedule;
+    @JoinColumn(name = "staff_schedule_id", nullable = false)
+    private StaffSchedule staffSchedule;
 
     @Column(name = "label", length = 100)
     private String label;           // e.g. "Lunch", "Zuhr Prayer"

@@ -8,10 +8,10 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class BarberPerformanceResponse {
-    private UUID barberId;
+public class StaffPerformanceResponse {
+    private UUID staffId;
     private UUID userId;
-    private String barberName;
+    private String staffName;
     private String phoneNumber;
     private UUID shopId;
     private String shopName;

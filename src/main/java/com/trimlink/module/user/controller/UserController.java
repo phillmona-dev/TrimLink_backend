@@ -53,13 +53,15 @@ public class UserController {
 
         User user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
+
         user.setFirstName(req.getFirstName());
         user.setLastName(req.getLastName());
-        
-        if (req.getEmail() != null) user.setEmail(req.getEmail());
-        if (req.getAvatarUrl() != null) user.setAvatarUrl(req.getAvatarUrl());
-        
+
+        if (req.getEmail() != null)
+            user.setEmail(req.getEmail());
+        if (req.getAvatarUrl() != null)
+            user.setAvatarUrl(req.getAvatarUrl());
+
         // Update username if provided and not taken
         if (req.getUsername() != null && !req.getUsername().equals(user.getUsername())) {
             if (userRepository.existsByUsername(req.getUsername())) {
@@ -67,12 +69,12 @@ public class UserController {
             }
             user.setUsername(req.getUsername());
         }
-        
+
         // Update password if provided
         if (req.getPassword() != null && !req.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(req.getPassword()));
         }
-        
+
         return ResponseEntity.ok(ApiResponse.ok(userRepository.save(user)));
     }
 
@@ -103,9 +105,15 @@ public class UserController {
     // ─── Inner DTO ───────────────────────────────────────────────────────────
     @Data
     public static class UpdateProfileRequest {
-        @NotBlank @Size(max = 100) private String firstName;
-        @NotBlank @Size(max = 100) private String lastName;
-        @Email    @Size(max = 150) private String email;
+        @NotBlank
+        @Size(max = 100)
+        private String firstName;
+        @NotBlank
+        @Size(max = 100)
+        private String lastName;
+        @Email
+        @Size(max = 150)
+        private String email;
         private String username;
         private String password;
         private String avatarUrl;

@@ -5,7 +5,7 @@ package com.trimlink.module.user.entity;
  */
 public enum Role {
     CUSTOMER,   // end users booking appointments
-    BARBER,     // individual barbers
-    OWNER,      // barbershop owners
+    STAFF,      // staff members (staffs, washers, etc.)
+    OWNER,      // staffshop owners
     ADMIN       // platform administrators
 }

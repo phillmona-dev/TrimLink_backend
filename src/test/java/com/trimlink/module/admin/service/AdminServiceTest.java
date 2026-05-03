@@ -1,17 +1,17 @@
 package com.trimlink.module.admin.service;
 
-import com.trimlink.module.admin.dto.BarberPerformanceResponse;
+import com.trimlink.module.admin.dto.StaffPerformanceResponse;
 import com.trimlink.module.admin.dto.DashboardStats;
 import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.queue.entity.QueueStatus;
 import com.trimlink.module.queue.repository.QueueEntryRepository;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,8 +37,8 @@ import static org.mockito.Mockito.when;
 class AdminServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private BarberProfileRepository barberProfileRepository;
-    @Mock private BarberShopRepository barberShopRepository;
+    @Mock private StaffProfileRepository staffProfileRepository;
+    @Mock private StaffShopRepository staffShopRepository;
     @Mock private AppointmentRepository appointmentRepository;
     @Mock private QueueEntryRepository queueEntryRepository;
 
@@ -49,8 +49,8 @@ class AdminServiceTest {
     @DisplayName("Dashboard includes expanded operational metrics")
     void getDashboardStats_returnsExpandedMetrics() {
         when(userRepository.countByDeletedFalse()).thenReturn(120L);
-        when(barberProfileRepository.countByDeletedFalse()).thenReturn(14L);
-        when(barberShopRepository.countByDeletedFalse()).thenReturn(8L);
+        when(staffProfileRepository.countByDeletedFalse()).thenReturn(14L);
+        when(staffShopRepository.countByDeletedFalse()).thenReturn(8L);
         when(appointmentRepository.countByDeletedFalseAndScheduledStartBetween(any(), any())).thenReturn(12L, 240L);
         when(queueEntryRepository.countByStatusInAndDeletedFalse(
                 List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE))).thenReturn(17L);
@@ -62,7 +62,7 @@ class AdminServiceTest {
         DashboardStats stats = adminService.getDashboardStats();
 
         assertThat(stats.getTotalUsers()).isEqualTo(120L);
-        assertThat(stats.getTotalBarbers()).isEqualTo(14L);
+        assertThat(stats.getTotalStaffs()).isEqualTo(14L);
         assertThat(stats.getTotalShops()).isEqualTo(8L);
         assertThat(stats.getTotalAppointmentsToday()).isEqualTo(12L);
         assertThat(stats.getTotalAppointmentsThisMonth()).isEqualTo(240L);
@@ -74,51 +74,51 @@ class AdminServiceTest {
     }
 
     @Test
-    @DisplayName("Barber performance maps per-barber operational metrics")
-    void listBarberPerformance_returnsMappedMetrics() {
-        UUID barberId = UUID.randomUUID();
+    @DisplayName("Staff performance maps per-staff operational metrics")
+    void listStaffPerformance_returnsMappedMetrics() {
+        UUID staffId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID shopId = UUID.randomUUID();
 
-        User barberUser = User.builder()
+        User staffUser = User.builder()
                 .phoneNumber("+251911111111")
                 .firstName("Dawit")
                 .lastName("Haile")
-                .role(Role.BARBER)
+                .role(Role.STAFF)
                 .build();
-        barberUser.setId(userId);
+        staffUser.setId(userId);
 
-        BarberShop shop = BarberShop.builder().name("Bole Trim").build();
+        StaffShop shop = StaffShop.builder().name("Bole Trim").build();
         shop.setId(shopId);
 
-        BarberProfile barber = BarberProfile.builder()
-                .user(barberUser)
+        StaffProfile staff = StaffProfile.builder()
+                .user(staffUser)
                 .shop(shop)
                 .available(true)
                 .averageRating(new BigDecimal("4.75"))
                 .totalReviews(11)
                 .build();
-        barber.setId(barberId);
+        staff.setId(staffId);
 
-        when(barberProfileRepository.findAllActiveWithUser(any()))
-                .thenReturn(new PageImpl<>(List.of(barber), PageRequest.of(0, 20), 1));
-        when(appointmentRepository.countByBarberIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
-                eq(barberId), eq(AppointmentStatus.COMPLETED), any(LocalDateTime.class), any(LocalDateTime.class)))
+        when(staffProfileRepository.findAllActiveWithUser(any()))
+                .thenReturn(new PageImpl<>(List.of(staff), PageRequest.of(0, 20), 1));
+        when(appointmentRepository.countByStaffIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                eq(staffId), eq(AppointmentStatus.COMPLETED), any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(4L, 52L);
-        when(appointmentRepository.countByBarberIdAndStatusAndDeletedFalse(barberId, AppointmentStatus.PENDING))
+        when(appointmentRepository.countByStaffIdAndStatusAndDeletedFalse(staffId, AppointmentStatus.PENDING))
                 .thenReturn(3L);
-        when(queueEntryRepository.countByBarberIdAndStatusInAndDeletedFalse(
-                eq(barberId), eq(List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE))))
+        when(queueEntryRepository.countByStaffIdAndStatusInAndDeletedFalse(
+                eq(staffId), eq(List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE))))
                 .thenReturn(5L);
-        when(queueEntryRepository.countCompletedSince(eq(barberId), any(LocalDateTime.class))).thenReturn(7L);
+        when(queueEntryRepository.countCompletedSince(eq(staffId), any(LocalDateTime.class))).thenReturn(7L);
 
-        var result = adminService.listBarberPerformance(PageRequest.of(0, 20));
-        BarberPerformanceResponse response = result.getContent().get(0);
+        var result = adminService.listStaffPerformance(PageRequest.of(0, 20));
+        StaffPerformanceResponse response = result.getContent().get(0);
 
-        assertThat(response.getBarberId()).isEqualTo(barberId);
+        assertThat(response.getStaffId()).isEqualTo(staffId);
         assertThat(response.getUserId()).isEqualTo(userId);
         assertThat(response.getShopId()).isEqualTo(shopId);
-        assertThat(response.getBarberName()).isEqualTo("Dawit Haile");
+        assertThat(response.getStaffName()).isEqualTo("Dawit Haile");
         assertThat(response.getAverageRating()).isEqualByComparingTo("4.75");
         assertThat(response.getTotalReviews()).isEqualTo(11);
         assertThat(response.getCompletedAppointmentsToday()).isEqualTo(4L);

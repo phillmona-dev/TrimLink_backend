@@ -70,7 +70,7 @@ class TelebirrClientTest {
                         .amount(new BigDecimal("210.00"))
                         .phoneNumber("+251922222222")
                         .title("TrimLink Payment")
-                        .description("Barbershop service payment")
+                        .description("Staffshop service payment")
                         .build());
 
         assertThat(response.getCheckoutUrl()).isEqualTo("https://telebirr.test/pay/checkout-1");

@@ -11,6 +11,6 @@ import java.util.UUID;
 
 @Repository
 public interface DailyWorkLogRepository extends JpaRepository<DailyWorkLog, UUID> {
-    Optional<DailyWorkLog> findByBarberIdAndLogDate(UUID barberId, LocalDate logDate);
-    List<DailyWorkLog> findByBarberIdAndLogDateBetween(UUID barberId, LocalDate start, LocalDate end);
+    Optional<DailyWorkLog> findByStaffIdAndLogDate(UUID staffId, LocalDate logDate);
+    List<DailyWorkLog> findByStaffIdAndLogDateBetween(UUID staffId, LocalDate start, LocalDate end);
 }

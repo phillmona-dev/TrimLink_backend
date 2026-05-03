@@ -12,8 +12,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WeeklyPerformanceResponse {
-    private UUID barberId;
-    private String barberName;
+    private UUID staffId;
+    private String staffName;
     private int totalCustomers;
     private int appBookings;
     private int manualEntries;

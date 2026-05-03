@@ -1,6 +1,6 @@
 package com.trimlink.module.user.dto;
 
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import lombok.Builder;
 import lombok.Data;
 
@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class BarberResponse {
+public class StaffResponse {
     private UUID id;
     private UserResponse user;
     private String bio;
@@ -18,17 +18,17 @@ public class BarberResponse {
     private BigDecimal averageRating;
     private int totalReviews;
     private boolean available;
-    private List<BarberServiceAssignmentResponse> serviceAssignments;
+    private List<StaffServiceAssignmentResponse> serviceAssignments;
 
-    public static BarberResponse from(BarberProfile profile) {
+    public static StaffResponse from(StaffProfile profile) {
         if (profile == null) return null;
         
-        List<BarberServiceAssignmentResponse> assignments = profile.getServiceAssignments() != null 
+        List<StaffServiceAssignmentResponse> assignments = profile.getServiceAssignments() != null 
             ? profile.getServiceAssignments().stream()
                 .filter(a -> a.getService().isActive())
-                .map(a -> BarberServiceAssignmentResponse.builder()
+                .map(a -> StaffServiceAssignmentResponse.builder()
                     .assignmentId(a.getId())
-                    .barberId(profile.getId())
+                    .staffId(profile.getId())
                     .serviceId(a.getService().getId())
                     .serviceName(a.getService().getName())
                     .serviceDescription(a.getService().getDescription())
@@ -41,7 +41,7 @@ public class BarberResponse {
                 .toList()
             : List.of();
 
-        return BarberResponse.builder()
+        return StaffResponse.builder()
                 .id(profile.getId())
                 .user(UserResponse.from(profile.getUser()))
                 .bio(profile.getBio())

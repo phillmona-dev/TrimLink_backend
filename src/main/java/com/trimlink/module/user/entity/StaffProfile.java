@@ -1,7 +1,7 @@
 package com.trimlink.module.user.entity;
 
 import com.trimlink.common.audit.BaseEntity;
-import com.trimlink.module.shop.entity.BarberShop;
+import com.trimlink.module.shop.entity.StaffShop;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,17 +10,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Extended profile for barbers. Linked 1:1 to User.
+ * Extended profile for staffs. Linked 1:1 to User.
  * Tracks average rating, bio, experience, and their assigned shop.
  */
 @Entity
-@Table(name = "barber_profiles")
+@Table(name = "staff_profiles")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BarberProfile extends BaseEntity {
+public class StaffProfile extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -28,7 +28,7 @@ public class BarberProfile extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id")
-    private BarberShop shop;
+    private StaffShop shop;
 
     @Column(name = "bio", length = 500)
     private String bio;
@@ -48,10 +48,10 @@ public class BarberProfile extends BaseEntity {
     @Builder.Default
     private boolean available = true;
 
-    // Services this barber offers — join table
-    @OneToMany(mappedBy = "barberProfile", cascade = CascadeType.ALL, orphanRemoval = true)
+    // Services this staff offers — join table
+    @OneToMany(mappedBy = "staffProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<BarberServiceAssignment> serviceAssignments = new ArrayList<>();
+    private List<StaffServiceAssignment> serviceAssignments = new ArrayList<>();
 
     /**
      * Recalculate average rating after a new review is submitted.

@@ -13,11 +13,11 @@ import com.trimlink.module.queue.entity.QueueStatus;
 import com.trimlink.module.queue.repository.QueueEntryRepository;
 import com.trimlink.module.service.entity.Service;
 import com.trimlink.module.service.repository.ServiceRepository;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,7 @@ import java.util.stream.IntStream;
  * Queue (Waitlist) Service — implements the FIFO walk-in queue.
  *
  * ── FIFO Algorithm ──────────────────────────────────────────────────────────
- *  Ordering key: (barber_profile_id, joined_at ASC)
+ *  Ordering key: (staff_profile_id, joined_at ASC)
  *
  *  For offline sync: when a client submits a join with clientTimestamp,
  *  the server uses that timestamp as the ordering key (capped at ±30 min
@@ -56,8 +56,8 @@ public class QueueService {
 
     private final QueueEntryRepository queueEntryRepository;
     private final UserRepository userRepository;
-    private final BarberProfileRepository barberProfileRepository;
-    private final BarberShopRepository barberShopRepository;
+    private final StaffProfileRepository staffProfileRepository;
+    private final StaffShopRepository staffShopRepository;
     private final ServiceRepository serviceRepository;
     private final EventProducer eventProducer;
 
@@ -66,19 +66,19 @@ public class QueueService {
     @Transactional
     public QueueTicketResponse joinQueue(UUID customerId, JoinQueueRequest req) {
         User customer        = findUser(customerId);
-        BarberProfile barber = findBarber(req.getBarberId());
-        BarberShop shop      = findShop(req.getShopId());
+        StaffProfile staff = findStaff(req.getStaffId());
+        StaffShop shop      = findShop(req.getShopId());
         Service service      = findService(req.getServiceId());
 
-        // Prevent duplicate active entry for same barber
+        // Prevent duplicate active entry for same staff
         boolean alreadyInQueue = queueEntryRepository
-                .existsByCustomerIdAndBarberIdAndStatusIn(
+                .existsByCustomerIdAndStaffIdAndStatusIn(
                         customerId,
-                        barber.getId(),
+                        staff.getId(),
                         List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE)
                 );
         if (alreadyInQueue) {
-            throw new ConflictException("You are already in this barber's queue.");
+            throw new ConflictException("You are already in this staff's queue.");
         }
 
         // ── Offline sync: resolve effective join timestamp ─────────────────
@@ -87,7 +87,7 @@ public class QueueService {
 
         QueueEntry entry = QueueEntry.builder()
                 .customer(customer)
-                .barber(barber)
+                .staff(staff)
                 .shop(shop)
                 .service(service)
                 .joinedAt(joinedAt)
@@ -98,11 +98,11 @@ public class QueueService {
 
         entry = queueEntryRepository.save(entry);
 
-        // Publish event — notifies barber and updates shop dashboard in real-time
+        // Publish event — notifies staff and updates shop dashboard in real-time
         eventProducer.publishQueueUpdated(QueueUpdatedEvent.joined(entry));
 
-        log.info("Customer {} joined queue for barber {} at position TBD, joinedAt={}",
-                customerId, barber.getId(), joinedAt);
+        log.info("Customer {} joined queue for staff {} at position TBD, joinedAt={}",
+                customerId, staff.getId(), joinedAt);
 
         return buildTicketResponse(entry);
     }
@@ -116,11 +116,11 @@ public class QueueService {
         return buildTicketResponse(entry);
     }
 
-    // ─── Get Full Queue (barber view) ─────────────────────────────────────
+    // ─── Get Full Queue (staff view) ─────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public List<QueueEntryResponse> getQueueForBarber(UUID barberId) {
-        List<QueueEntry> queue = queueEntryRepository.findActiveQueueByBarber(barberId);
+    public List<QueueEntryResponse> getQueueForStaff(UUID staffId) {
+        List<QueueEntry> queue = queueEntryRepository.findActiveQueueByStaff(staffId);
         return IntStream.range(0, queue.size())
                 .mapToObj(i -> toEntryResponse(queue.get(i), i + 1))
                 .toList();
@@ -137,12 +137,12 @@ public class QueueService {
     // ─── Queue Advancement ────────────────────────────────────────────────
 
     /**
-     * Barber calls the next customer in line.
+     * Staff calls the next customer in line.
      * Moves current WAITING → CALLED and notifies the customer via Kafka event.
      */
     @Transactional
-    public QueueTicketResponse callNext(UUID barberId) {
-        List<QueueEntry> active = queueEntryRepository.findActiveQueueByBarber(barberId);
+    public QueueTicketResponse callNext(UUID staffId) {
+        List<QueueEntry> active = queueEntryRepository.findActiveQueueByStaff(staffId);
 
         QueueEntry next = active.stream()
                 .filter(e -> e.getStatus() == QueueStatus.WAITING)
@@ -153,14 +153,14 @@ public class QueueService {
         queueEntryRepository.save(next);
         eventProducer.publishQueueUpdated(QueueUpdatedEvent.called(next));
 
-        log.info("Barber {} called customer {} (entryId={})",
-                barberId, next.getCustomer().getId(), next.getId());
+        log.info("Staff {} called customer {} (entryId={})",
+                staffId, next.getCustomer().getId(), next.getId());
 
         return buildTicketResponse(next);
     }
 
     /**
-     * Marks current entry as IN_SERVICE (barber starts cutting).
+     * Marks current entry as IN_SERVICE (staff starts cutting).
      */
     @Transactional
     public QueueTicketResponse startService(UUID entryId) {
@@ -183,7 +183,7 @@ public class QueueService {
 
         // Auto-call next
         List<QueueEntry> remaining = queueEntryRepository
-                .findActiveQueueByBarber(entry.getBarber().getId());
+                .findActiveQueueByStaff(entry.getStaff().getId());
         remaining.stream()
                 .filter(e -> e.getStatus() == QueueStatus.WAITING)
                 .findFirst()
@@ -199,7 +199,7 @@ public class QueueService {
     }
 
     /**
-     * Customer or barber cancels a queue entry.
+     * Customer or staff cancels a queue entry.
      */
     @Transactional
     public void cancelEntry(UUID requesterId, String requesterRole, UUID entryId) {
@@ -236,10 +236,10 @@ public class QueueService {
      *   total_wait             = remaining_for_current + wait_from_ahead
      */
     private int calculateEtaMinutes(QueueEntry myEntry) {
-        UUID barberId = myEntry.getBarber().getId();
+        UUID staffId = myEntry.getStaff().getId();
 
         // Time remaining for whomever is currently IN_SERVICE
-        int remainingForCurrent = queueEntryRepository.findCurrentEntry(barberId)
+        int remainingForCurrent = queueEntryRepository.findCurrentEntry(staffId)
                 .map(current -> {
                     if (current.getServiceStartedAt() == null) {
                         return current.getService().getDurationMinutes();
@@ -253,7 +253,7 @@ public class QueueService {
 
         // Sum of durations for all WAITING entries that joined BEFORE me
         List<QueueEntry> ahead = queueEntryRepository.findEntriesAheadOf(
-                barberId, myEntry.getJoinedAt());
+                staffId, myEntry.getJoinedAt());
         int waitFromAhead = ahead.stream()
                 .mapToInt(e -> e.getService().getDurationMinutes())
                 .sum();
@@ -293,9 +293,9 @@ public class QueueService {
                 .customerName(entry.getCustomer().getFirstName()
                         + " " + entry.getCustomer().getLastName())
                 .customerPhone(entry.getCustomer().getPhoneNumber())
-                .barberId(entry.getBarber().getId())
-                .barberName(entry.getBarber().getUser().getFirstName()
-                        + " " + entry.getBarber().getUser().getLastName())
+                .staffId(entry.getStaff().getId())
+                .staffName(entry.getStaff().getUser().getFirstName()
+                        + " " + entry.getStaff().getUser().getLastName())
                 .shopId(entry.getShop().getId())
                 .shopName(entry.getShop().getName())
                 .serviceId(entry.getService().getId())
@@ -313,7 +313,7 @@ public class QueueService {
     private int computePosition(QueueEntry entry) {
         if (entry.getStatus() != QueueStatus.WAITING) return 0;
         return (int) queueEntryRepository
-                .findEntriesAheadOf(entry.getBarber().getId(), entry.getJoinedAt())
+                .findEntriesAheadOf(entry.getStaff().getId(), entry.getJoinedAt())
                 .stream().count() + 1;
     }
 
@@ -345,8 +345,8 @@ public class QueueService {
         }
 
         boolean isCustomer = entry.getCustomer().getId().equals(requesterId);
-        boolean isAssignedBarber = entry.getBarber().getUser().getId().equals(requesterId);
-        if (!isCustomer && !isAssignedBarber) {
+        boolean isAssignedStaff = entry.getStaff().getUser().getId().equals(requesterId);
+        if (!isCustomer && !isAssignedStaff) {
             throw new AccessDeniedException("You are not allowed to access this queue entry.");
         }
     }
@@ -354,13 +354,13 @@ public class QueueService {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
     }
-    private BarberProfile findBarber(UUID id) {
-        return barberProfileRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", id));
+    private StaffProfile findStaff(UUID id) {
+        return staffProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", id));
     }
-    private BarberShop findShop(UUID id) {
-        return barberShopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
+    private StaffShop findShop(UUID id) {
+        return staffShopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
     }
     private Service findService(UUID id) {
         return serviceRepository.findById(id)

@@ -2,8 +2,8 @@ package com.trimlink.module.booking.entity;
 
 import com.trimlink.common.audit.BaseEntity;
 import com.trimlink.module.service.entity.Service;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,13 +15,13 @@ import java.time.LocalDateTime;
  * Core booking entity.
  *
  * Overlap prevention is enforced by:
- *  1. DB unique constraint on (barber_profile_id, scheduled_start) — prevents exact duplicate inserts
+ *  1. DB unique constraint on (staff_profile_id, scheduled_start) — prevents exact duplicate inserts
  *  2. Service-layer query checking for overlaps in [start, end) before persisting
- *  3. Pessimistic write lock on the barber's schedule row during booking creation
+ *  3. Pessimistic write lock on the staff's schedule row during booking creation
  */
 @Entity
 @Table(name = "appointments", indexes = {
-        @Index(name = "idx_appt_barber_start", columnList = "barber_profile_id, scheduled_start"),
+        @Index(name = "idx_appt_staff_start", columnList = "staff_profile_id, scheduled_start"),
         @Index(name = "idx_appt_customer",     columnList = "customer_id"),
         @Index(name = "idx_appt_status",       columnList = "status"),
         @Index(name = "idx_appt_shop_date",    columnList = "shop_id, scheduled_start")
@@ -38,12 +38,12 @@ public class Appointment extends BaseEntity {
     private User customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_profile_id", nullable = false)
-    private BarberProfile barber;
+    @JoinColumn(name = "staff_profile_id", nullable = false)
+    private StaffProfile staff;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
-    private BarberShop shop;
+    private StaffShop shop;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)

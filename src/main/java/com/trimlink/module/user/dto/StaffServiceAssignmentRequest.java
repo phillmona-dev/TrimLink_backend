@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
-public class BarberServiceAssignmentRequest {
+public class StaffServiceAssignmentRequest {
 
     @NotNull(message = "Service ID is required")
     private UUID serviceId;

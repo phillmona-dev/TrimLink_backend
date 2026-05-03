@@ -65,10 +65,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/shops/my-shop/**").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/shops", "/shops/{id}", "/shops/{id}/barbers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/shops", "/shops/{id}", "/shops/{id}/staffs").permitAll()
                         .requestMatchers(HttpMethod.GET, "/services/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/barber/**").hasAnyRole("BARBER", "OWNER", "ADMIN")
+                        .requestMatchers("/staff/**").hasAnyRole("STAFF", "OWNER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

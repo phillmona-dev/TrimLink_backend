@@ -58,7 +58,7 @@ public class User extends BaseEntity {
     @Builder.Default
     private boolean phoneVerified = false;
 
-    // Bidirectional 1:1 with BarberProfile (null unless role = BARBER or OWNER)
+    // Bidirectional 1:1 with StaffProfile (null unless role = STAFF or OWNER)
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private BarberProfile barberProfile;
+    private StaffProfile staffProfile;
 }

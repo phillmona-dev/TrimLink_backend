@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/** A single entry in the shop/barber queue dashboard view. */
+/** A single entry in the shop/staff queue dashboard view. */
 @Data
 @Builder
 public class QueueEntryResponse {

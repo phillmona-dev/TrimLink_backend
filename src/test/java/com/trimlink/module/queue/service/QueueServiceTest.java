@@ -8,12 +8,12 @@ import com.trimlink.module.queue.entity.QueueStatus;
 import com.trimlink.module.queue.repository.QueueEntryRepository;
 import com.trimlink.module.service.entity.Service;
 import com.trimlink.module.service.repository.ServiceRepository;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,24 +40,24 @@ class QueueServiceTest {
 
     @Mock private QueueEntryRepository    queueEntryRepository;
     @Mock private UserRepository          userRepository;
-    @Mock private BarberProfileRepository barberProfileRepository;
-    @Mock private BarberShopRepository    barberShopRepository;
+    @Mock private StaffProfileRepository staffProfileRepository;
+    @Mock private StaffShopRepository    staffShopRepository;
     @Mock private ServiceRepository       serviceRepository;
     @Mock private EventProducer           eventProducer;
 
     @InjectMocks
     private QueueService queueService;
 
-    private UUID customerId, barberId, shopId, serviceId;
+    private UUID customerId, staffId, shopId, serviceId;
     private User customer;
-    private BarberProfile barber;
-    private BarberShop shop;
+    private StaffProfile staff;
+    private StaffShop shop;
     private Service service;
 
     @BeforeEach
     void setUp() {
         customerId = UUID.randomUUID();
-        barberId   = UUID.randomUUID();
+        staffId   = UUID.randomUUID();
         shopId     = UUID.randomUUID();
         serviceId  = UUID.randomUUID();
 
@@ -69,15 +69,15 @@ class QueueServiceTest {
                 .name("Shave").basePrice(new BigDecimal("80.00"))
                 .durationMinutes(20).active(true).build();
 
-        shop = BarberShop.builder()
+        shop = StaffShop.builder()
                 .name("TrimLink Kazanchis").city("Addis Ababa").active(true).build();
 
-        User barberUser = User.builder()
+        User staffUser = User.builder()
                 .firstName("Yonas").lastName("Tadesse")
-                .phoneNumber("+251911000002").role(Role.BARBER).build();
+                .phoneNumber("+251911000002").role(Role.STAFF).build();
 
-        barber = BarberProfile.builder()
-                .user(barberUser).shop(shop).available(true).build();
+        staff = StaffProfile.builder()
+                .user(staffUser).shop(shop).available(true).build();
     }
 
     // ─── joinQueue ─────────────────────────────────────────────────────────
@@ -86,20 +86,20 @@ class QueueServiceTest {
     @DisplayName("Should join queue successfully and return ticket with position 1")
     void joinQueue_success_firstInLine() {
         JoinQueueRequest req = new JoinQueueRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setShopId(shopId);
         req.setServiceId(serviceId);
         req.setClientTimestamp(LocalDateTime.now());
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(queueEntryRepository.existsByCustomerIdAndBarberIdAndStatusIn(any(), any(), any()))
+        when(queueEntryRepository.existsByCustomerIdAndStaffIdAndStatusIn(any(), any(), any()))
                 .thenReturn(false);
 
         QueueEntry saved = QueueEntry.builder()
-                .customer(customer).barber(barber).shop(shop).service(service)
+                .customer(customer).staff(staff).shop(shop).service(service)
                 .joinedAt(LocalDateTime.now()).status(QueueStatus.WAITING).build();
         when(queueEntryRepository.save(any())).thenReturn(saved);
         when(queueEntryRepository.findEntriesAheadOf(any(), any())).thenReturn(List.of());
@@ -118,20 +118,20 @@ class QueueServiceTest {
     @DisplayName("Should throw ConflictException when customer already in queue")
     void joinQueue_throwsConflict_whenAlreadyInQueue() {
         JoinQueueRequest req = new JoinQueueRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setShopId(shopId);
         req.setServiceId(serviceId);
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(queueEntryRepository.existsByCustomerIdAndBarberIdAndStatusIn(any(), any(), any()))
+        when(queueEntryRepository.existsByCustomerIdAndStaffIdAndStatusIn(any(), any(), any()))
                 .thenReturn(true); // Already in queue
 
         assertThatThrownBy(() -> queueService.joinQueue(customerId, req))
                 .isInstanceOf(ConflictException.class)
-                .hasMessageContaining("already in this barber's queue");
+                .hasMessageContaining("already in this staff's queue");
 
         verify(queueEntryRepository, never()).save(any());
     }
@@ -145,27 +145,27 @@ class QueueServiceTest {
         Service svc20min = Service.builder().durationMinutes(20).name("Shave").build();
 
         QueueEntry ahead1 = QueueEntry.builder()
-                .customer(customer).barber(barber).shop(shop).service(svc20min)
+                .customer(customer).staff(staff).shop(shop).service(svc20min)
                 .joinedAt(LocalDateTime.now().minusMinutes(10))
                 .status(QueueStatus.WAITING).build();
         QueueEntry ahead2 = QueueEntry.builder()
-                .customer(customer).barber(barber).shop(shop).service(svc20min)
+                .customer(customer).staff(staff).shop(shop).service(svc20min)
                 .joinedAt(LocalDateTime.now().minusMinutes(5))
                 .status(QueueStatus.WAITING).build();
 
         JoinQueueRequest req = new JoinQueueRequest();
-        req.setBarberId(barberId); req.setShopId(shopId); req.setServiceId(serviceId);
+        req.setStaffId(staffId); req.setShopId(shopId); req.setServiceId(serviceId);
         req.setClientTimestamp(LocalDateTime.now());
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(queueEntryRepository.existsByCustomerIdAndBarberIdAndStatusIn(any(), any(), any()))
+        when(queueEntryRepository.existsByCustomerIdAndStaffIdAndStatusIn(any(), any(), any()))
                 .thenReturn(false);
 
         QueueEntry mySaved = QueueEntry.builder()
-                .customer(customer).barber(barber).shop(shop).service(service)
+                .customer(customer).staff(staff).shop(shop).service(service)
                 .joinedAt(LocalDateTime.now()).status(QueueStatus.WAITING).build();
         when(queueEntryRepository.save(any())).thenReturn(mySaved);
         when(queueEntryRepository.findEntriesAheadOf(any(), any()))
@@ -186,18 +186,18 @@ class QueueServiceTest {
         LocalDateTime clientTs = LocalDateTime.now().minusMinutes(10);
 
         JoinQueueRequest req = new JoinQueueRequest();
-        req.setBarberId(barberId); req.setShopId(shopId); req.setServiceId(serviceId);
+        req.setStaffId(staffId); req.setShopId(shopId); req.setServiceId(serviceId);
         req.setClientTimestamp(clientTs);
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(queueEntryRepository.existsByCustomerIdAndBarberIdAndStatusIn(any(), any(), any()))
+        when(queueEntryRepository.existsByCustomerIdAndStaffIdAndStatusIn(any(), any(), any()))
                 .thenReturn(false);
 
         QueueEntry saved = QueueEntry.builder()
-                .customer(customer).barber(barber).shop(shop).service(service)
+                .customer(customer).staff(staff).shop(shop).service(service)
                 .joinedAt(clientTs) // should use clientTimestamp
                 .status(QueueStatus.WAITING).build();
         when(queueEntryRepository.save(any())).thenReturn(saved);

@@ -10,8 +10,8 @@ import java.util.UUID;
 @Data
 public class JoinQueueRequest {
 
-    @NotNull(message = "Barber ID is required")
-    private UUID barberId;
+    @NotNull(message = "Staff ID is required")
+    private UUID staffId;
 
     @NotNull(message = "Shop ID is required")
     private UUID shopId;

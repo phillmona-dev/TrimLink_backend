@@ -9,14 +9,14 @@ import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.service.entity.Service;
 import com.trimlink.module.service.repository.ServiceRepository;
-import com.trimlink.module.shop.entity.BarberShop;
+import com.trimlink.module.shop.entity.StaffShop;
 import com.trimlink.module.shop.entity.WorkingHours;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import com.trimlink.module.shop.repository.WorkingHoursRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,8 +46,8 @@ class BookingServiceTest {
 
     @Mock private AppointmentRepository  appointmentRepository;
     @Mock private UserRepository         userRepository;
-    @Mock private BarberProfileRepository barberProfileRepository;
-    @Mock private BarberShopRepository   barberShopRepository;
+    @Mock private StaffProfileRepository staffProfileRepository;
+    @Mock private StaffShopRepository   staffShopRepository;
     @Mock private ServiceRepository      serviceRepository;
     @Mock private WorkingHoursRepository workingHoursRepository;
     @Mock private EventProducer          eventProducer;
@@ -55,17 +55,17 @@ class BookingServiceTest {
     @InjectMocks
     private BookingService bookingService;
 
-    private UUID customerId, barberId, shopId, serviceId;
+    private UUID customerId, staffId, shopId, serviceId;
     private User customer;
-    private BarberProfile barber;
-    private BarberShop shop;
+    private StaffProfile staff;
+    private StaffShop shop;
     private Service service;
     private WorkingHours workingHours;
 
     @BeforeEach
     void setUp() {
         customerId = UUID.randomUUID();
-        barberId   = UUID.randomUUID();
+        staffId   = UUID.randomUUID();
         shopId     = UUID.randomUUID();
         serviceId  = UUID.randomUUID();
 
@@ -78,15 +78,15 @@ class BookingServiceTest {
                 .name("Haircut").basePrice(new BigDecimal("150.00"))
                 .durationMinutes(30).active(true).build();
 
-        shop = BarberShop.builder().name("TrimLink Bole")
+        shop = StaffShop.builder().name("TrimLink Bole")
                 .address("Bole, Addis Ababa").city("Addis Ababa").active(true).build();
 
-        User barberUser = User.builder()
+        User staffUser = User.builder()
                 .firstName("Dawit").lastName("Haile")
-                .phoneNumber("+251911111111").role(Role.BARBER).build();
+                .phoneNumber("+251911111111").role(Role.STAFF).build();
 
-        barber = BarberProfile.builder()
-                .user(barberUser).shop(shop)
+        staff = StaffProfile.builder()
+                .user(staffUser).shop(shop)
                 .available(true).serviceAssignments(new ArrayList<>()).build();
 
         // Wednesday shop is open 09:00 – 18:00
@@ -104,7 +104,7 @@ class BookingServiceTest {
     void createAppointment_success() {
         // Arrange
         CreateAppointmentRequest req = new CreateAppointmentRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setShopId(shopId);
         req.setServiceId(serviceId);
         // Next Wednesday at 10:00 AM
@@ -114,8 +114,8 @@ class BookingServiceTest {
         req.setScheduledStart(wednesday10am);
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
         when(workingHoursRepository.findByShopIdAndDayOfWeek(any(), eq(DayOfWeek.WEDNESDAY)))
                 .thenReturn(Optional.of(workingHours));
@@ -123,7 +123,7 @@ class BookingServiceTest {
                 .thenReturn(List.of()); // No overlaps
 
         Appointment saved = Appointment.builder()
-                .customer(customer).barber(barber).shop(shop).service(service)
+                .customer(customer).staff(staff).shop(shop).service(service)
                 .scheduledStart(wednesday10am)
                 .scheduledEnd(wednesday10am.plusMinutes(30))
                 .status(AppointmentStatus.PENDING)
@@ -146,14 +146,14 @@ class BookingServiceTest {
     void createAppointment_conflict() {
         // Arrange
         CreateAppointmentRequest req = new CreateAppointmentRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setShopId(shopId);
         req.setServiceId(serviceId);
         req.setScheduledStart(LocalDateTime.now().plusDays(1).with(LocalTime.of(10, 0)));
 
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
-        when(barberShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
+        when(staffShopRepository.findById(shopId)).thenReturn(Optional.of(shop));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
         when(workingHoursRepository.findByShopIdAndDayOfWeek(any(), any()))
                 .thenReturn(Optional.of(workingHours));
@@ -177,13 +177,13 @@ class BookingServiceTest {
     void getAvailableSlots_generatesCorrectCount() {
         // Arrange: shop open 09:00-18:00, service 30 min → 18 slots
         SlotAvailabilityRequest req = new SlotAvailabilityRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setServiceId(serviceId);
         req.setDate(LocalDate.now().with(java.time.temporal.TemporalAdjusters.next(DayOfWeek.WEDNESDAY)));
 
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(appointmentRepository.findBarberDaySchedule(any(), any(), any()))
+        when(appointmentRepository.findStaffDaySchedule(any(), any(), any()))
                 .thenReturn(List.of()); // No existing bookings
         when(workingHoursRepository.findByShopIdAndDayOfWeek(any(), eq(DayOfWeek.WEDNESDAY)))
                 .thenReturn(Optional.of(workingHours));
@@ -203,7 +203,7 @@ class BookingServiceTest {
                 .with(java.time.temporal.TemporalAdjusters.next(DayOfWeek.WEDNESDAY));
 
         SlotAvailabilityRequest req = new SlotAvailabilityRequest();
-        req.setBarberId(barberId);
+        req.setStaffId(staffId);
         req.setServiceId(serviceId);
         req.setDate(nextWed);
 
@@ -213,9 +213,9 @@ class BookingServiceTest {
         when(existing.getScheduledEnd()).thenReturn(nextWed.atTime(10, 30));
         when(existing.getStatus()).thenReturn(AppointmentStatus.CONFIRMED);
 
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staff));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));
-        when(appointmentRepository.findBarberDaySchedule(any(), any(), any()))
+        when(appointmentRepository.findStaffDaySchedule(any(), any(), any()))
                 .thenReturn(List.of(existing));
         when(workingHoursRepository.findByShopIdAndDayOfWeek(any(), eq(DayOfWeek.WEDNESDAY)))
                 .thenReturn(Optional.of(workingHours));

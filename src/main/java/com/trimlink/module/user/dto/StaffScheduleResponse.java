@@ -10,9 +10,9 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class BarberScheduleResponse {
+public class StaffScheduleResponse {
     private UUID id;
-    private UUID barberId;
+    private UUID staffId;
     private DayOfWeek dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;

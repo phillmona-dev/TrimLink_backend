@@ -22,7 +22,7 @@ import com.trimlink.module.payment.repository.PaymentRepository;
 import com.trimlink.module.queue.entity.QueueEntry;
 import com.trimlink.module.queue.entity.QueueStatus;
 import com.trimlink.module.queue.repository.QueueEntryRepository;
-import com.trimlink.module.user.entity.BarberServiceAssignment;
+import com.trimlink.module.user.entity.StaffServiceAssignment;
 import com.trimlink.module.user.entity.User;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -120,7 +120,7 @@ public class PaymentService {
         chapaReq.setPhoneNumber(user.getPhoneNumber());
         chapaReq.setCallbackUrl(chapaClient.getCallbackUrl());
         chapaReq.setReturnUrl(chapaClient.getReturnUrl());
-        chapaReq.setCustomization(Map.of("title", "TrimLink Payment", "description", "Barbershop service payment"));
+        chapaReq.setCustomization(Map.of("title", "TrimLink Payment", "description", "Staffshop service payment"));
 
         ChapaClient.ChapaInitResponse chapaRes = chapaClient.initiatePayment(chapaReq);
 
@@ -141,7 +141,7 @@ public class PaymentService {
                 .amount(payment.getAmount())
                 .phoneNumber(user.getPhoneNumber())
                 .title("TrimLink Payment")
-                .description("Barbershop service payment")
+                .description("Staffshop service payment")
                 .build();
 
         TelebirrClient.TelebirrInitResponse telebirrRes = telebirrClient.initiatePayment(telebirrReq);
@@ -337,8 +337,8 @@ public class PaymentService {
             throw new BusinessException("This queue entry is no longer payable.");
         }
 
-        BigDecimal expectedAmount = entry.getBarber().getServiceAssignments().stream()
-                .filter(BarberServiceAssignment::isActive)
+        BigDecimal expectedAmount = entry.getStaff().getServiceAssignments().stream()
+                .filter(StaffServiceAssignment::isActive)
                 .filter(assignment -> assignment.getService().getId().equals(entry.getService().getId()))
                 .map(assignment -> assignment.getCustomPrice() != null
                         ? assignment.getCustomPrice()

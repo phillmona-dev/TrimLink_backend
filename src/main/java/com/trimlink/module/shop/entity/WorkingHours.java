@@ -8,7 +8,7 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 
 /**
- * Operating hours for a barbershop on a specific day of the week.
+ * Operating hours for a staffshop on a specific day of the week.
  * Closed flag allows marking holidays without deleting the record.
  */
 @Entity
@@ -25,7 +25,7 @@ public class WorkingHours extends BaseEntity {
     @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
-    private BarberShop shop;
+    private StaffShop shop;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week", nullable = false, length = 15)

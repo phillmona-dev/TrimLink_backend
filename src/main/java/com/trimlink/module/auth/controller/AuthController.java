@@ -27,7 +27,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Registration successful", auth));
     }
 
-    @Operation(summary = "Register a new barber shop (requires admin approval)")
+    @Operation(summary = "Register a new staff shop (requires admin approval)")
     @PostMapping("/register/shop")
     public ResponseEntity<ApiResponse<AuthResponse>> registerShop(
             @Valid @RequestBody ShopRegistrationRequest request) {

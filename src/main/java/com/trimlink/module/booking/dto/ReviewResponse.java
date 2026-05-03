@@ -12,8 +12,8 @@ import java.util.UUID;
 public class ReviewResponse {
     private UUID reviewId;
     private UUID appointmentId;
-    private UUID barberId;
-    private String barberName;
+    private UUID staffId;
+    private String staffName;
     private UUID reviewerId;
     private String reviewerName;
     private BigDecimal rating;

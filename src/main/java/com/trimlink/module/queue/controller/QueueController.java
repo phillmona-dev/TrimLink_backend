@@ -50,17 +50,17 @@ public class QueueController {
                 queueService.getMyTicket(principal.getUserId(), principal.getRole(), entryId)));
     }
 
-    // GET /queue/barber/{barberId} — barber sees their full active queue
-    @Operation(summary = "Get active queue for a barber")
-    @GetMapping("/barber/{barberId}")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
-    public ResponseEntity<ApiResponse<List<QueueEntryResponse>>> getBarberQueue(
-            @PathVariable UUID barberId) {
+    // GET /queue/staff/{staffId} — staff sees their full active queue
+    @Operation(summary = "Get active queue for a staff")
+    @GetMapping("/staff/{staffId}")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<QueueEntryResponse>>> getStaffQueue(
+            @PathVariable UUID staffId) {
 
-        return ResponseEntity.ok(ApiResponse.ok(queueService.getQueueForBarber(barberId)));
+        return ResponseEntity.ok(ApiResponse.ok(queueService.getQueueForStaff(staffId)));
     }
 
-    // GET /queue/shop/{shopId} — shop owner sees all barbers' queues
+    // GET /queue/shop/{shopId} — shop owner sees all staffs' queues
     @Operation(summary = "Get active queue for entire shop")
     @GetMapping("/shop/{shopId}")
     @PreAuthorize("hasAnyRole('OWNER', 'ADMIN')")
@@ -70,30 +70,30 @@ public class QueueController {
         return ResponseEntity.ok(ApiResponse.ok(queueService.getQueueForShop(shopId)));
     }
 
-    // POST /queue/barber/{barberId}/call-next — barber calls the next customer
+    // POST /queue/staff/{staffId}/call-next — staff calls the next customer
     @Operation(summary = "Call next customer in queue")
-    @PostMapping("/barber/{barberId}/call-next")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PostMapping("/staff/{staffId}/call-next")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QueueTicketResponse>> callNext(
-            @PathVariable UUID barberId) {
+            @PathVariable UUID staffId) {
 
-        return ResponseEntity.ok(ApiResponse.ok(queueService.callNext(barberId)));
+        return ResponseEntity.ok(ApiResponse.ok(queueService.callNext(staffId)));
     }
 
-    // PATCH /queue/{entryId}/start-service — barber starts the service
+    // PATCH /queue/{entryId}/start-service — staff starts the service
     @Operation(summary = "Mark service as started for a queue entry")
     @PatchMapping("/{entryId}/start-service")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QueueTicketResponse>> startService(
             @PathVariable UUID entryId) {
 
         return ResponseEntity.ok(ApiResponse.ok(queueService.startService(entryId)));
     }
 
-    // PATCH /queue/{entryId}/complete — barber completes service, queue auto-advances
+    // PATCH /queue/{entryId}/complete — staff completes service, queue auto-advances
     @Operation(summary = "Complete service for queue entry (advances queue)")
     @PatchMapping("/{entryId}/complete")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QueueTicketResponse>> completeService(
             @PathVariable UUID entryId) {
 
@@ -112,10 +112,10 @@ public class QueueController {
         return ResponseEntity.ok(ApiResponse.ok("Left the queue successfully", null));
     }
 
-    // PATCH /queue/{entryId}/skip — barber skips a non-responding customer
+    // PATCH /queue/{entryId}/skip — staff skips a non-responding customer
     @Operation(summary = "Skip a customer who did not respond")
     @PatchMapping("/{entryId}/skip")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> skipCustomer(
             @PathVariable UUID entryId) {
 

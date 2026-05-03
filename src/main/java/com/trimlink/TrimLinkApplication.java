@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.trimlink.module.shop.entity.WorkingHours;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import com.trimlink.module.shop.repository.WorkingHoursRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +27,7 @@ public class TrimLinkApplication {
 
     @Bean
     public CommandLineRunner initWorkingHours(
-            BarberShopRepository shopRepository,
+            StaffShopRepository shopRepository,
             WorkingHoursRepository workingHoursRepository) {
         return args -> {
             shopRepository.findAll().forEach(shop -> {

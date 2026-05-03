@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 @Builder
 public class DashboardStats {
     private long totalUsers;
-    private long totalBarbers;
+    private long totalStaffs;
     private long totalShops;
     private long totalAppointmentsToday;
     private long totalAppointmentsThisMonth;

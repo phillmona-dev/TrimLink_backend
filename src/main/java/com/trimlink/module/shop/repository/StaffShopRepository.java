@@ -1,6 +1,6 @@
 package com.trimlink.module.shop.repository;
 
-import com.trimlink.module.shop.entity.BarberShop;
+import com.trimlink.module.shop.entity.StaffShop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,14 +9,14 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
-public interface BarberShopRepository extends JpaRepository<BarberShop, UUID> {
-    Page<BarberShop> findByCityAndActiveTrue(String city, Pageable pageable);
-    Page<BarberShop> findByActiveTrue(Pageable pageable);
+public interface StaffShopRepository extends JpaRepository<StaffShop, UUID> {
+    Page<StaffShop> findByCityAndActiveTrue(String city, Pageable pageable);
+    Page<StaffShop> findByActiveTrue(Pageable pageable);
     long countByDeletedFalse();
 
     @org.springframework.data.jpa.repository.Query(
-        "SELECT DISTINCT s FROM BarberShop s " +
-        "LEFT JOIN s.barbers b " +
+        "SELECT DISTINCT s FROM StaffShop s " +
+        "LEFT JOIN s.staffs b " +
         "LEFT JOIN b.user u " +
         "WHERE s.active = true AND (" +
         " LOWER(s.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
@@ -30,5 +30,5 @@ public interface BarberShopRepository extends JpaRepository<BarberShop, UUID> {
         " ))" +
         ")"
     )
-    Page<BarberShop> search(@org.springframework.data.repository.query.Param("q") String query, Pageable pageable);
+    Page<StaffShop> search(@org.springframework.data.repository.query.Param("q") String query, Pageable pageable);
 }

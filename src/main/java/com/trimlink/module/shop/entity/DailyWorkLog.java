@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "daily_work_logs", indexes = {
-        @Index(name = "idx_work_logs_barber_date", columnList = "barber_id, log_date")
+        @Index(name = "idx_work_logs_staff_date", columnList = "staff_id, log_date")
 })
 @Getter
 @Setter
@@ -18,8 +18,8 @@ import java.util.UUID;
 @Builder
 public class DailyWorkLog extends BaseEntity {
 
-    @Column(name = "barber_id", nullable = false)
-    private UUID barberId;
+    @Column(name = "staff_id", nullable = false)
+    private UUID staffId;
 
     @Column(name = "log_date", nullable = false)
     private LocalDate logDate;

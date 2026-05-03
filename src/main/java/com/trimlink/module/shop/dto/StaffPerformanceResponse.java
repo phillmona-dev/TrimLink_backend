@@ -14,7 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class StaffPerformanceResponse {
     private UserResponse user;
-    private UUID barberId;
+    private UUID staffId;
     private boolean available;
     private int customersToday;
     private int manualLogsToday;

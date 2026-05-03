@@ -15,11 +15,11 @@ public class WebSocketNotificationService {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * Broadcasts a notification payload to a specific barber's topic.
-     * Clients should subscribe to: /topic/barbers/{barberId}/bookings
+     * Broadcasts a notification payload to a specific staff's topic.
+     * Clients should subscribe to: /topic/staffs/{staffId}/bookings
      */
-    public void notifyBarber(UUID barberId, Object payload) {
-        String destination = "/topic/barbers/" + barberId + "/bookings";
+    public void notifyStaff(UUID staffId, Object payload) {
+        String destination = "/topic/staffs/" + staffId + "/bookings";
         log.info("Sending websocket message to {}", destination);
         messagingTemplate.convertAndSend(destination, payload);
     }

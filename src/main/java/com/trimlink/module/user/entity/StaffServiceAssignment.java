@@ -8,30 +8,30 @@ import lombok.*;
 import java.math.BigDecimal;
 
 /**
- * Join entity: a barber's price override for a given service.
- * A barber can charge differently from the base service price.
+ * Join entity: a staff's price override for a given service.
+ * A staff can charge differently from the base service price.
  */
 @Entity
-@Table(name = "barber_service_assignments", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"barber_profile_id", "service_id"})
+@Table(name = "staff_service_assignments", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"staff_profile_id", "service_id"})
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BarberServiceAssignment extends BaseEntity {
+public class StaffServiceAssignment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_profile_id", nullable = false)
-    private BarberProfile barberProfile;
+    @JoinColumn(name = "staff_profile_id", nullable = false)
+    private StaffProfile staffProfile;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     private Service service;
 
     /**
-     * Barber-specific price override. Null = use service base price.
+     * Staff-specific price override. Null = use service base price.
      */
     @Column(name = "custom_price", precision = 10, scale = 2)
     private BigDecimal customPrice;

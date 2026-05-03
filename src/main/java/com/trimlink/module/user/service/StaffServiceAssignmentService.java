@@ -3,14 +3,14 @@ package com.trimlink.module.user.service;
 import com.trimlink.common.exception.BusinessException;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.module.service.repository.ServiceRepository;
-import com.trimlink.module.user.dto.BarberServiceAssignmentRequest;
-import com.trimlink.module.user.dto.BarberServiceAssignmentResponse;
-import com.trimlink.module.user.dto.UpsertBarberServicesRequest;
-import com.trimlink.module.user.entity.BarberProfile;
-import com.trimlink.module.user.entity.BarberServiceAssignment;
+import com.trimlink.module.user.dto.StaffServiceAssignmentRequest;
+import com.trimlink.module.user.dto.StaffServiceAssignmentResponse;
+import com.trimlink.module.user.dto.UpsertStaffServicesRequest;
+import com.trimlink.module.user.entity.StaffProfile;
+import com.trimlink.module.user.entity.StaffServiceAssignment;
 import com.trimlink.module.user.entity.Role;
-import com.trimlink.module.user.repository.BarberProfileRepository;
-import com.trimlink.module.user.repository.BarberServiceAssignmentRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
+import com.trimlink.module.user.repository.StaffServiceAssignmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,67 +25,67 @@ import java.util.UUID;
 @Slf4j
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
-public class BarberServiceAssignmentService {
+public class StaffServiceAssignmentService {
 
-    private final BarberProfileRepository barberProfileRepository;
-    private final BarberServiceAssignmentRepository assignmentRepository;
+    private final StaffProfileRepository staffProfileRepository;
+    private final StaffServiceAssignmentRepository assignmentRepository;
     private final ServiceRepository serviceRepository;
 
     @Transactional(readOnly = true)
-    public List<BarberServiceAssignmentResponse> listAssignments(UUID barberId) {
-        findBarber(barberId);
-        return assignmentRepository.findByBarberProfileIdAndActiveTrueAndDeletedFalseOrderByCreatedAtAsc(barberId)
+    public List<StaffServiceAssignmentResponse> listAssignments(UUID staffId) {
+        findStaff(staffId);
+        return assignmentRepository.findByStaffProfileIdAndActiveTrueAndDeletedFalseOrderByCreatedAtAsc(staffId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional
-    public List<BarberServiceAssignmentResponse> upsertAssignments(UUID barberId,
+    public List<StaffServiceAssignmentResponse> upsertAssignments(UUID staffId,
                                                                    UUID requesterId,
                                                                    String requesterRole,
-                                                                   UpsertBarberServicesRequest request) {
-        BarberProfile barber = findBarber(barberId);
-        enforceAccess(barber, requesterId, requesterRole);
+                                                                   UpsertStaffServicesRequest request) {
+        StaffProfile staff = findStaff(staffId);
+        enforceAccess(staff, requesterId, requesterRole);
         validateNoDuplicates(request.getAssignments());
 
-        List<BarberServiceAssignmentResponse> responses = request.getAssignments().stream()
-                .map(assignmentRequest -> upsertSingle(barber, assignmentRequest))
+        List<StaffServiceAssignmentResponse> responses = request.getAssignments().stream()
+                .map(assignmentRequest -> upsertSingle(staff, assignmentRequest))
                 .map(this::toResponse)
                 .toList();
 
-        log.info("Upserted {} service assignments for barber={}", responses.size(), barberId);
+        log.info("Upserted {} service assignments for staff={}", responses.size(), staffId);
         return responses;
     }
 
     @Transactional
-    public BarberServiceAssignmentResponse deactivateAssignment(UUID barberId,
+    public StaffServiceAssignmentResponse deactivateAssignment(UUID staffId,
                                                                 UUID assignmentId,
                                                                 UUID requesterId,
                                                                 String requesterRole) {
-        BarberProfile barber = findBarber(barberId);
-        enforceAccess(barber, requesterId, requesterRole);
+        StaffProfile staff = findStaff(staffId);
+        enforceAccess(staff, requesterId, requesterRole);
 
-        BarberServiceAssignment assignment = assignmentRepository.findByIdAndDeletedFalse(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberServiceAssignment", "id", assignmentId));
+        StaffServiceAssignment assignment = assignmentRepository.findByIdAndDeletedFalse(assignmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffServiceAssignment", "id", assignmentId));
 
-        if (!assignment.getBarberProfile().getId().equals(barberId)) {
-            throw new BusinessException("Assignment does not belong to the specified barber.");
+        if (!assignment.getStaffProfile().getId().equals(staffId)) {
+            throw new BusinessException("Assignment does not belong to the specified staff.");
         }
 
         assignment.setActive(false);
         assignment.softDelete();
         assignment = assignmentRepository.save(assignment);
-        log.info("Deactivated service assignment {} for barber={}", assignmentId, barberId);
+        log.info("Deactivated service assignment {} for staff={}", assignmentId, staffId);
         return toResponse(assignment);
     }
 
-    private BarberServiceAssignment upsertSingle(BarberProfile barber, BarberServiceAssignmentRequest request) {
+    private StaffServiceAssignment upsertSingle(StaffProfile staff, StaffServiceAssignmentRequest request) {
         var service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", request.getServiceId()));
 
         if (!service.isActive()) {
-            throw new BusinessException("Inactive services cannot be assigned to barbers.");
+            throw new BusinessException("Inactive services cannot be assigned to staffs.");
         }
 
         if (request.getCustomPrice() != null &&
@@ -94,14 +94,14 @@ public class BarberServiceAssignmentService {
             throw new BusinessException("Custom price cannot be lower than the base service price.");
         }
 
-        BarberServiceAssignment assignment = assignmentRepository
-                .findByBarberProfileIdAndServiceId(barber.getId(), service.getId())
-                .orElseGet(() -> BarberServiceAssignment.builder()
-                        .barberProfile(barber)
+        StaffServiceAssignment assignment = assignmentRepository
+                .findByStaffProfileIdAndServiceId(staff.getId(), service.getId())
+                .orElseGet(() -> StaffServiceAssignment.builder()
+                        .staffProfile(staff)
                         .service(service)
                         .build());
 
-        assignment.setBarberProfile(barber);
+        assignment.setStaffProfile(staff);
         assignment.setService(service);
         assignment.setCustomPrice(request.getCustomPrice());
         assignment.setActive(true);
@@ -111,42 +111,42 @@ public class BarberServiceAssignmentService {
         return assignmentRepository.save(assignment);
     }
 
-    private BarberProfile findBarber(UUID barberId) {
-        return barberProfileRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", barberId));
+    private StaffProfile findStaff(UUID staffId) {
+        return staffProfileRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", staffId));
     }
 
-    private void enforceAccess(BarberProfile barber, UUID requesterId, String requesterRole) {
+    private void enforceAccess(StaffProfile staff, UUID requesterId, String requesterRole) {
         if (Role.ADMIN.name().equalsIgnoreCase(requesterRole) ||
             Role.OWNER.name().equalsIgnoreCase(requesterRole)) {
             return;
         }
 
-        if (Role.BARBER.name().equalsIgnoreCase(requesterRole) &&
-            barber.getUser().getId().equals(requesterId)) {
+        if (Role.STAFF.name().equalsIgnoreCase(requesterRole) &&
+            staff.getUser().getId().equals(requesterId)) {
             return;
         }
 
-        throw new AccessDeniedException("You are not allowed to manage services for this barber.");
+        throw new AccessDeniedException("You are not allowed to manage services for this staff.");
     }
 
-    private void validateNoDuplicates(List<BarberServiceAssignmentRequest> assignments) {
+    private void validateNoDuplicates(List<StaffServiceAssignmentRequest> assignments) {
         Set<UUID> seen = new HashSet<>();
-        for (BarberServiceAssignmentRequest assignment : assignments) {
+        for (StaffServiceAssignmentRequest assignment : assignments) {
             if (!seen.add(assignment.getServiceId())) {
                 throw new BusinessException("Duplicate service IDs are not allowed in the same request.");
             }
         }
     }
 
-    private BarberServiceAssignmentResponse toResponse(BarberServiceAssignment assignment) {
+    private StaffServiceAssignmentResponse toResponse(StaffServiceAssignment assignment) {
         BigDecimal effectivePrice = assignment.getCustomPrice() != null
                 ? assignment.getCustomPrice()
                 : assignment.getService().getBasePrice();
 
-        return BarberServiceAssignmentResponse.builder()
+        return StaffServiceAssignmentResponse.builder()
                 .assignmentId(assignment.getId())
-                .barberId(assignment.getBarberProfile().getId())
+                .staffId(assignment.getStaffProfile().getId())
                 .serviceId(assignment.getService().getId())
                 .serviceName(assignment.getService().getName())
                 .serviceDescription(assignment.getService().getDescription())

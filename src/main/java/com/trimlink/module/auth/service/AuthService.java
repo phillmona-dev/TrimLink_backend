@@ -3,13 +3,13 @@ package com.trimlink.module.auth.service;
 import com.trimlink.common.exception.OtpException;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.module.auth.dto.*;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import com.trimlink.module.user.entity.ApprovalStatus;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import com.trimlink.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +30,8 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final BarberShopRepository barberShopRepository;
-    private final BarberProfileRepository barberProfileRepository;
+    private final StaffShopRepository staffShopRepository;
+    private final StaffProfileRepository staffProfileRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
 
@@ -86,7 +86,7 @@ public class AuthService {
         }
 
         // 1. Create Shop
-        BarberShop shop = BarberShop.builder()
+        StaffShop shop = StaffShop.builder()
                 .name(request.getShopName())
                 .city(request.getCity())
                 .address(request.getAddress())
@@ -96,7 +96,7 @@ public class AuthService {
                 .longitude(request.getLongitude())
                 .active(false) // Shop needs approval too, or relies on owner status
                 .build();
-        shop = barberShopRepository.save(shop);
+        shop = staffShopRepository.save(shop);
 
         // 2. Create User (Owner)
         User user = User.builder()
@@ -112,13 +112,13 @@ public class AuthService {
                 .build();
         user = userRepository.save(user);
 
-        // 3. Create BarberProfile linking User to Shop
-        BarberProfile profile = BarberProfile.builder()
+        // 3. Create StaffProfile linking User to Shop
+        StaffProfile profile = StaffProfile.builder()
                 .user(user)
                 .shop(shop)
                 .available(false)
                 .build();
-        barberProfileRepository.save(profile);
+        staffProfileRepository.save(profile);
 
         log.info("Shop registered (pending approval): id={}, username={}, shopName={}", 
                  user.getId(), user.getUsername(), shop.getName());

@@ -1,20 +1,20 @@
 package com.trimlink.module.shop.controller;
- 
+
 import com.trimlink.common.dto.ApiResponse;
 import com.trimlink.common.dto.PageResponse;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.module.shop.dto.ShopSearchResponse;
 import com.trimlink.module.shop.dto.ShopStatsResponse;
-import com.trimlink.module.user.dto.BarberResponse;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.user.dto.StaffResponse;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import com.trimlink.module.shop.dto.StaffPerformanceResponse;
 import com.trimlink.module.shop.dto.WeeklyPerformanceResponse;
 import com.trimlink.module.shop.service.ShopService;
 import com.trimlink.module.user.dto.UserResponse;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import com.trimlink.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,21 +36,21 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@Tag(name = "Shops", description = "Barbershop management")
+@Tag(name = "Shops", description = "Staffshop management")
 @RestController
 @RequestMapping("/shops")
 @RequiredArgsConstructor
 public class ShopController {
 
-    private final BarberShopRepository   shopRepository;
-    private final BarberProfileRepository barberProfileRepository;
+    private final StaffShopRepository shopRepository;
+    private final StaffProfileRepository staffProfileRepository;
     private final UserRepository userRepository;
     private final ShopService shopService;
     private final com.trimlink.module.shop.repository.WorkingHoursRepository workingHoursRepository;
 
-    // GET /shops?q=...  — full-text search across name/city/address
+    // GET /shops?q=... — full-text search across name/city/address
     // GET /shops?city=... — city filter (legacy)
-    // GET /shops         — all active shops
+    // GET /shops — all active shops
     @Operation(summary = "List or search active shops (q=keyword or city=name)")
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ShopSearchResponse>>> listShops(
@@ -66,35 +66,36 @@ public class ShopController {
     // GET /shops/{id}
     @Operation(summary = "Get shop details by ID")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BarberShop>> getById(@PathVariable UUID id) {
-        BarberShop shop = shopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
+    public ResponseEntity<ApiResponse<StaffShop>> getById(@PathVariable UUID id) {
+        StaffShop shop = shopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
         return ResponseEntity.ok(ApiResponse.ok(shop));
     }
 
-    // GET /shops/{id}/barbers — list barbers in this shop
-    @Operation(summary = "List available barbers in a shop")
-    @GetMapping("/{id}/barbers")
+    // GET /shops/{id}/staffs — list staffs in this shop
+    @Operation(summary = "List available staffs in a shop")
+    @GetMapping("/{id}/staffs")
     @Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<List<BarberResponse>>> getBarbers(@PathVariable UUID id) {
-        List<BarberProfile> barbers = barberProfileRepository.findByShopIdAndDeletedFalseAndAvailableTrueOrderByAverageRatingDesc(id);
-        
-        List<BarberResponse> response = barbers.stream()
-                .map(BarberResponse::from)
+    public ResponseEntity<ApiResponse<List<StaffResponse>>> getStaffs(@PathVariable UUID id) {
+        List<StaffProfile> staffs = staffProfileRepository
+                .findByShopIdAndDeletedFalseAndAvailableTrueOrderByAverageRatingDesc(id);
+
+        List<StaffResponse> response = staffs.stream()
+                .map(StaffResponse::from)
                 .toList();
-                
+
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     // POST /shops — ADMIN/OWNER
-    @Operation(summary = "Create a new barbershop")
+    @Operation(summary = "Create a new staffshop")
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     @Transactional
-    public ResponseEntity<ApiResponse<BarberShop>> create(
+    public ResponseEntity<ApiResponse<StaffShop>> create(
             @Valid @RequestBody ShopRequest req) {
 
-        BarberShop shop = BarberShop.builder()
+        StaffShop shop = StaffShop.builder()
                 .name(req.getName())
                 .phone(req.getPhone())
                 .address(req.getAddress())
@@ -126,11 +127,11 @@ public class ShopController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
     @Transactional
-    public ResponseEntity<ApiResponse<BarberShop>> update(
+    public ResponseEntity<ApiResponse<StaffShop>> update(
             @PathVariable UUID id, @Valid @RequestBody ShopRequest req) {
 
-        BarberShop shop = shopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
+        StaffShop shop = shopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
         shop.setName(req.getName());
         shop.setPhone(req.getPhone());
         shop.setAddress(req.getAddress());
@@ -147,8 +148,8 @@ public class ShopController {
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
-        BarberShop shop = shopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
+        StaffShop shop = shopRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffShop", "id", id));
         shop.setActive(false);
         shopRepository.save(shop);
         return ResponseEntity.ok(ApiResponse.ok("Shop deactivated", null));
@@ -161,17 +162,17 @@ public class ShopController {
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<ShopStatsResponse>> getShopStats(
             @AuthenticationPrincipal AuthenticatedUser principal) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("Unauthorized: User is not linked to a shop");
         }
-        
-        UUID shopId = owner.getBarberProfile().getShop().getId();
+
+        UUID shopId = owner.getStaffProfile().getShop().getId();
         ShopStatsResponse stats = shopService.getShopStats(shopId);
-        
+
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
@@ -180,15 +181,15 @@ public class ShopController {
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<List<StaffPerformanceResponse>>> getMyStaffPerformance(
             @AuthenticationPrincipal AuthenticatedUser principal) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You are not associated with any shop");
         }
 
-        UUID shopId = owner.getBarberProfile().getShop().getId();
+        UUID shopId = owner.getStaffProfile().getShop().getId();
         return ResponseEntity.ok(ApiResponse.ok(shopService.getStaffPerformance(shopId)));
     }
 
@@ -197,39 +198,39 @@ public class ShopController {
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<List<WeeklyPerformanceResponse>>> getWeeklyReport(
             @AuthenticationPrincipal AuthenticatedUser principal) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You are not associated with any shop");
         }
 
-        UUID shopId = owner.getBarberProfile().getShop().getId();
+        UUID shopId = owner.getStaffProfile().getShop().getId();
         return ResponseEntity.ok(ApiResponse.ok(shopService.getWeeklyReport(shopId)));
     }
 
     @Operation(summary = "Log daily customer work for a staff member")
-    @PostMapping("/my-shop/staff/{barberId}/logs")
+    @PostMapping("/my-shop/staff/{staffId}/logs")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<Void>> logStaffWork(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @PathVariable UUID barberId,
+            @PathVariable UUID staffId,
             @Valid @RequestBody WorkLogRequest req) {
-        
-        // Security check: ensure the barber belongs to the owner's shop
+
+        // Security check: ensure the staff belongs to the owner's shop
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        BarberProfile barber = barberProfileRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("Barber", "id", barberId));
-        
-        if (owner.getBarberProfile() == null || barber.getShop() == null || 
-            !owner.getBarberProfile().getShop().getId().equals(barber.getShop().getId())) {
+
+        StaffProfile staff = staffProfileRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", staffId));
+
+        if (owner.getStaffProfile() == null || staff.getShop() == null ||
+                !owner.getStaffProfile().getShop().getId().equals(staff.getShop().getId())) {
             throw new RuntimeException("Unauthorized: Staff does not belong to your shop");
         }
 
-        shopService.logDailyWork(barberId, req.getCount(), req.getNotes());
+        shopService.logDailyWork(staffId, req.getCount(), req.getNotes());
         return ResponseEntity.ok(ApiResponse.ok("Work logged successfully", null));
     }
 
@@ -240,29 +241,29 @@ public class ShopController {
     public ResponseEntity<ApiResponse<UserResponse>> addStaff(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody AddStaffRequest req) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You are not associated with any shop");
         }
 
         User staffUser = userRepository.findByPhoneNumber(req.getPhoneNumber())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "phone", req.getPhoneNumber()));
 
-        BarberProfile profile = barberProfileRepository.findByUserId(staffUser.getId())
-                .orElse(BarberProfile.builder()
+        StaffProfile profile = staffProfileRepository.findByUserId(staffUser.getId())
+                .orElse(StaffProfile.builder()
                         .user(staffUser)
                         .build());
-        
-        profile.setShop(owner.getBarberProfile().getShop());
+
+        profile.setShop(owner.getStaffProfile().getShop());
         profile.setAvailable(true);
-        barberProfileRepository.save(profile);
-        
-        // Ensure user has BARBER role if they were a CUSTOMER
+        staffProfileRepository.save(profile);
+
+        // Ensure user has STAFF role if they were a CUSTOMER
         if (staffUser.getRole() == com.trimlink.module.user.entity.Role.CUSTOMER) {
-            staffUser.setRole(com.trimlink.module.user.entity.Role.BARBER);
+            staffUser.setRole(com.trimlink.module.user.entity.Role.STAFF);
             userRepository.save(staffUser);
         }
 
@@ -270,28 +271,28 @@ public class ShopController {
     }
 
     @Operation(summary = "Toggle staff member availability")
-    @PatchMapping("/my-shop/staff/{barberId}/availability")
+    @PatchMapping("/my-shop/staff/{staffId}/availability")
     @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public ResponseEntity<ApiResponse<Void>> toggleAvailability(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @PathVariable UUID barberId,
+            @PathVariable UUID staffId,
             @RequestBody AvailabilityRequest req) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        BarberProfile barber = barberProfileRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("Barber", "id", barberId));
-        
-        if (owner.getBarberProfile() == null || barber.getShop() == null || 
-            !owner.getBarberProfile().getShop().getId().equals(barber.getShop().getId())) {
+
+        StaffProfile staff = staffProfileRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff", "id", staffId));
+
+        if (owner.getStaffProfile() == null || staff.getShop() == null ||
+                !owner.getStaffProfile().getShop().getId().equals(staff.getShop().getId())) {
             throw new RuntimeException("Unauthorized: Staff does not belong to your shop");
         }
 
-        barber.setAvailable(req.isAvailable());
-        barberProfileRepository.save(barber);
-        
+        staff.setAvailable(req.isAvailable());
+        staffProfileRepository.save(staff);
+
         return ResponseEntity.ok(ApiResponse.ok("Availability updated", null));
     }
 
@@ -300,15 +301,16 @@ public class ShopController {
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<List<com.trimlink.module.shop.entity.WorkingHours>>> getMyHours(
             @AuthenticationPrincipal AuthenticatedUser principal) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You are not associated with any shop");
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(workingHoursRepository.findByShopIdOrderByDayOfWeek(owner.getBarberProfile().getShop().getId())));
+        return ResponseEntity.ok(ApiResponse
+                .ok(workingHoursRepository.findByShopIdOrderByDayOfWeek(owner.getStaffProfile().getShop().getId())));
     }
 
     @Operation(summary = "Update shop working hours")
@@ -318,31 +320,32 @@ public class ShopController {
     public ResponseEntity<ApiResponse<List<com.trimlink.module.shop.entity.WorkingHours>>> updateMyHours(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestBody List<WorkingHoursRequest> req) {
-        
+
         User owner = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
-        
-        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+
+        if (owner.getStaffProfile() == null || owner.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You are not associated with any shop");
         }
 
-        UUID shopId = owner.getBarberProfile().getShop().getId();
-        
+        UUID shopId = owner.getStaffProfile().getShop().getId();
+
         for (WorkingHoursRequest hourReq : req) {
             com.trimlink.module.shop.entity.WorkingHours wh = workingHoursRepository
                     .findByShopIdAndDayOfWeek(shopId, hourReq.getDayOfWeek())
                     .orElse(com.trimlink.module.shop.entity.WorkingHours.builder()
-                            .shop(owner.getBarberProfile().getShop())
+                            .shop(owner.getStaffProfile().getShop())
                             .dayOfWeek(hourReq.getDayOfWeek())
                             .build());
-            
+
             wh.setOpenTime(hourReq.getOpenTime());
             wh.setCloseTime(hourReq.getCloseTime());
             wh.setClosed(hourReq.isClosed());
             workingHoursRepository.save(wh);
         }
 
-        return ResponseEntity.ok(ApiResponse.ok("Hours updated", workingHoursRepository.findByShopIdOrderByDayOfWeek(shopId)));
+        return ResponseEntity
+                .ok(ApiResponse.ok("Hours updated", workingHoursRepository.findByShopIdOrderByDayOfWeek(shopId)));
     }
 
     // ─── Inner DTOs ──────────────────────────────────────────────────────────
@@ -350,15 +353,18 @@ public class ShopController {
     public static class AvailabilityRequest {
         private boolean available;
     }
-    
+
     @Data
     public static class AddStaffRequest {
-        @NotBlank @Size(min = 10, max = 15) private String phoneNumber;
+        @NotBlank
+        @Size(min = 10, max = 15)
+        private String phoneNumber;
     }
 
     @Data
     public static class WorkLogRequest {
-        @NotNull private Integer count;
+        @NotNull
+        private Integer count;
         private String notes;
     }
 
@@ -373,12 +379,19 @@ public class ShopController {
 
     @Data
     public static class ShopRequest {
-        @NotBlank @Size(max = 200) private String name;
-        @Size(max = 20)            private String phone;
-        @NotBlank                  private String address;
-        @NotBlank @Size(max = 100) private String city;
+        @NotBlank
+        @Size(max = 200)
+        private String name;
+        @Size(max = 20)
+        private String phone;
+        @NotBlank
+        private String address;
+        @NotBlank
+        @Size(max = 100)
+        private String city;
         private Double latitude;
         private Double longitude;
-        @Size(max = 500)           private String description;
+        @Size(max = 500)
+        private String description;
     }
 }

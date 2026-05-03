@@ -51,7 +51,7 @@ class NotificationConsumerTest {
                 .customerId(customerId)
                 .customerPhone("+251911111111")
                 .customerName("Sara Alemu")
-                .barberName("Miki")
+                .staffName("Miki")
                 .shopName("Trim House")
                 .serviceName("Haircut")
                 .scheduledStart(LocalDateTime.of(2026, 5, 1, 10, 0))

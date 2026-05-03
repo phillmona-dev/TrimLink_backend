@@ -18,8 +18,8 @@ public class QueueTicketResponse {
     private String customerName;
     private String customerPhone;
 
-    private UUID barberId;
-    private String barberName;
+    private UUID staffId;
+    private String staffName;
 
     private UUID shopId;
     private String shopName;

@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-@Tag(name = "Services", description = "Barbershop service catalog management")
+@Tag(name = "Services", description = "Staffshop service catalog management")
 @RestController
 @RequestMapping("/services")
 @RequiredArgsConstructor
@@ -81,7 +81,7 @@ public class ServiceController {
         com.trimlink.module.user.entity.User user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
         
-        if (user.getBarberProfile() == null || user.getBarberProfile().getShop() == null) {
+        if (user.getStaffProfile() == null || user.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You must be linked to a shop to create services");
         }
 
@@ -90,7 +90,7 @@ public class ServiceController {
                 .description(req.getDescription())
                 .basePrice(req.getBasePrice())
                 .durationMinutes(req.getDurationMinutes())
-                .shopId(user.getBarberProfile().getShop().getId())
+                .shopId(user.getStaffProfile().getShop().getId())
                 .active(true)
                 .build();
 
@@ -107,12 +107,12 @@ public class ServiceController {
         com.trimlink.module.user.entity.User user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
         
-        if (user.getBarberProfile() == null || user.getBarberProfile().getShop() == null) {
+        if (user.getStaffProfile() == null || user.getStaffProfile().getShop() == null) {
             throw new RuntimeException("You must be linked to a shop to view the catalog");
         }
 
         return ResponseEntity.ok(ApiResponse.ok(
-                serviceRepository.findActiveByShopIdOrGlobal(user.getBarberProfile().getShop().getId())));
+                serviceRepository.findActiveByShopIdOrGlobal(user.getStaffProfile().getShop().getId())));
     }
 
     // PUT /services/{id} — ADMIN/OWNER only
@@ -133,7 +133,7 @@ public class ServiceController {
             com.trimlink.module.user.entity.User user = userRepository.findById(principal.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
             
-            if (svc.getShopId() == null || !svc.getShopId().equals(user.getBarberProfile().getShop().getId())) {
+            if (svc.getShopId() == null || !svc.getShopId().equals(user.getStaffProfile().getShop().getId())) {
                 throw new RuntimeException("Unauthorized: You can only update your shop's custom services");
             }
         }
@@ -161,7 +161,7 @@ public class ServiceController {
             com.trimlink.module.user.entity.User user = userRepository.findById(principal.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
             
-            if (svc.getShopId() == null || !svc.getShopId().equals(user.getBarberProfile().getShop().getId())) {
+            if (svc.getShopId() == null || !svc.getShopId().equals(user.getStaffProfile().getShop().getId())) {
                 throw new RuntimeException("Unauthorized: You can only deactivate your shop's custom services");
             }
         }

@@ -2,7 +2,7 @@ package com.trimlink.module.admin.controller;
 
 import com.trimlink.common.dto.ApiResponse;
 import com.trimlink.common.dto.PageResponse;
-import com.trimlink.module.admin.dto.BarberPerformanceResponse;
+import com.trimlink.module.admin.dto.StaffPerformanceResponse;
 import com.trimlink.module.admin.dto.DashboardStats;
 import com.trimlink.module.admin.service.AdminService;
 import com.trimlink.module.user.dto.UserResponse;
@@ -41,12 +41,12 @@ public class AdminController {
                 ApiResponse.ok(PageResponse.from(adminService.listUsers(pageable))));
     }
 
-    @Operation(summary = "List barber performance metrics")
-    @GetMapping("/barbers/performance")
-    public ResponseEntity<ApiResponse<PageResponse<BarberPerformanceResponse>>> listBarberPerformance(
+    @Operation(summary = "List staff performance metrics")
+    @GetMapping("/staffs/performance")
+    public ResponseEntity<ApiResponse<PageResponse<StaffPerformanceResponse>>> listStaffPerformance(
             @PageableDefault(size = 20, sort = "averageRating") Pageable pageable) {
         return ResponseEntity.ok(
-                ApiResponse.ok(PageResponse.from(adminService.listBarberPerformance(pageable))));
+                ApiResponse.ok(PageResponse.from(adminService.listStaffPerformance(pageable))));
     }
 
     @Operation(summary = "Get all pending shops awaiting approval")

@@ -2,7 +2,7 @@ package com.trimlink.module.booking.entity;
 
 import com.trimlink.common.audit.BaseEntity;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -32,8 +32,8 @@ public class Review extends BaseEntity {
     private User reviewer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_profile_id", nullable = false)
-    private BarberProfile barberProfile;
+    @JoinColumn(name = "staff_profile_id", nullable = false)
+    private StaffProfile staffProfile;
 
     @Column(name = "rating", nullable = false, precision = 2, scale = 1)
     private BigDecimal rating;   // 1.0 – 5.0

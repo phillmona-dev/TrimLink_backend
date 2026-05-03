@@ -7,12 +7,12 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Request to generate available time slots for a barber on a given day. */
+/** Request to generate available time slots for a staff on a given day. */
 @Data
 public class SlotAvailabilityRequest {
 
-    @NotNull(message = "Barber ID is required")
-    private UUID barberId;
+    @NotNull(message = "Staff ID is required")
+    private UUID staffId;
 
     @NotNull(message = "Service ID is required")
     private UUID serviceId;

@@ -17,7 +17,7 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("TrimLink API")
-                        .description("Barbershop Booking & Queue Management Platform — Ethiopia")
+                        .description("Staffshop Booking & Queue Management Platform — Ethiopia")
                         .version("1.0.0")
                         .contact(new Contact().name("TrimLink Team").email("dev@trimlink.et")))
                 .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))

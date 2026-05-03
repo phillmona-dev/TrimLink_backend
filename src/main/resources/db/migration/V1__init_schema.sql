@@ -16,7 +16,7 @@ CREATE TABLE users (
     last_name       VARCHAR(100) NOT NULL,
     email           VARCHAR(150),
     avatar_url      TEXT,
-    role            VARCHAR(20)  NOT NULL CHECK (role IN ('CUSTOMER','BARBER','OWNER','ADMIN')),
+    role            VARCHAR(20)  NOT NULL CHECK (role IN ('CUSTOMER','STAFF','OWNER','ADMIN')),
     active          BOOLEAN      NOT NULL DEFAULT TRUE,
     phone_verified  BOOLEAN      NOT NULL DEFAULT FALSE,
     approval_status VARCHAR(20)  NOT NULL DEFAULT 'APPROVED' CHECK (approval_status IN ('PENDING','APPROVED','REJECTED')),
@@ -31,8 +31,8 @@ CREATE TABLE users (
 CREATE INDEX idx_users_phone ON users(phone_number);
 CREATE INDEX idx_users_role  ON users(role);
 
--- ─── BARBER SHOPS ────────────────────────────────────────────
-CREATE TABLE barber_shops (
+-- ─── STAFF SHOPS ────────────────────────────────────────────
+CREATE TABLE staff_shops (
     id          UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
     name        VARCHAR(200) NOT NULL,
     phone       VARCHAR(20),
@@ -51,13 +51,13 @@ CREATE TABLE barber_shops (
     updated_by  VARCHAR(255)
 );
 
-CREATE INDEX idx_shops_city   ON barber_shops(city);
-CREATE INDEX idx_shops_active ON barber_shops(active);
+CREATE INDEX idx_shops_city   ON staff_shops(city);
+CREATE INDEX idx_shops_active ON staff_shops(active);
 
 -- ─── WORKING HOURS ───────────────────────────────────────────
 CREATE TABLE working_hours (
     id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_id     UUID        NOT NULL REFERENCES barber_shops(id) ON DELETE CASCADE,
+    shop_id     UUID        NOT NULL REFERENCES staff_shops(id) ON DELETE CASCADE,
     day_of_week VARCHAR(15) NOT NULL,
     open_time   TIME        NOT NULL,
     close_time  TIME        NOT NULL,
@@ -71,11 +71,11 @@ CREATE TABLE working_hours (
     UNIQUE (shop_id, day_of_week)
 );
 
--- ─── BARBER PROFILES ─────────────────────────────────────────
-CREATE TABLE barber_profiles (
+-- ─── STAFF PROFILES ─────────────────────────────────────────
+CREATE TABLE staff_profiles (
     id               UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id          UUID           NOT NULL UNIQUE REFERENCES users(id),
-    shop_id          UUID           REFERENCES barber_shops(id),
+    shop_id          UUID           REFERENCES staff_shops(id),
     bio              VARCHAR(500),
     experience_years INTEGER,
     average_rating   NUMERIC(3,2)   NOT NULL DEFAULT 0.00,
@@ -89,7 +89,7 @@ CREATE TABLE barber_profiles (
     updated_by       VARCHAR(255)
 );
 
-CREATE INDEX idx_barber_shop ON barber_profiles(shop_id);
+CREATE INDEX idx_staff_shop ON staff_profiles(shop_id);
 
 -- ─── SERVICES ────────────────────────────────────────────────
 CREATE TABLE services (
@@ -108,10 +108,10 @@ CREATE TABLE services (
     updated_by       VARCHAR(255)
 );
 
--- ─── BARBER SERVICE ASSIGNMENTS ───────────────────────────────
-CREATE TABLE barber_service_assignments (
+-- ─── STAFF SERVICE ASSIGNMENTS ───────────────────────────────
+CREATE TABLE staff_service_assignments (
     id                UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
-    barber_profile_id UUID          NOT NULL REFERENCES barber_profiles(id) ON DELETE CASCADE,
+    staff_profile_id UUID          NOT NULL REFERENCES staff_profiles(id) ON DELETE CASCADE,
     service_id        UUID          NOT NULL REFERENCES services(id),
     custom_price      NUMERIC(10,2),
     active            BOOLEAN       NOT NULL DEFAULT TRUE,
@@ -121,15 +121,15 @@ CREATE TABLE barber_service_assignments (
     updated_at        TIMESTAMP     NOT NULL DEFAULT NOW(),
     created_by        VARCHAR(255),
     updated_by        VARCHAR(255),
-    UNIQUE (barber_profile_id, service_id)
+    UNIQUE (staff_profile_id, service_id)
 );
 
 -- ─── APPOINTMENTS ────────────────────────────────────────────
 CREATE TABLE appointments (
     id                  UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id         UUID           NOT NULL REFERENCES users(id),
-    barber_profile_id   UUID           NOT NULL REFERENCES barber_profiles(id),
-    shop_id             UUID           NOT NULL REFERENCES barber_shops(id),
+    staff_profile_id   UUID           NOT NULL REFERENCES staff_profiles(id),
+    shop_id             UUID           NOT NULL REFERENCES staff_shops(id),
     service_id          UUID           NOT NULL REFERENCES services(id),
     scheduled_start     TIMESTAMP      NOT NULL,
     scheduled_end       TIMESTAMP      NOT NULL,
@@ -148,7 +148,7 @@ CREATE TABLE appointments (
     updated_by          VARCHAR(255)
 );
 
-CREATE INDEX idx_appt_barber_start ON appointments(barber_profile_id, scheduled_start);
+CREATE INDEX idx_appt_staff_start ON appointments(staff_profile_id, scheduled_start);
 CREATE INDEX idx_appt_customer     ON appointments(customer_id);
 CREATE INDEX idx_appt_status       ON appointments(status);
 CREATE INDEX idx_appt_shop_date    ON appointments(shop_id, scheduled_start);
@@ -157,8 +157,8 @@ CREATE INDEX idx_appt_shop_date    ON appointments(shop_id, scheduled_start);
 CREATE TABLE queue_entries (
     id                UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_id       UUID        NOT NULL REFERENCES users(id),
-    barber_profile_id UUID        NOT NULL REFERENCES barber_profiles(id),
-    shop_id           UUID        NOT NULL REFERENCES barber_shops(id),
+    staff_profile_id UUID        NOT NULL REFERENCES staff_profiles(id),
+    shop_id           UUID        NOT NULL REFERENCES staff_shops(id),
     service_id        UUID        NOT NULL REFERENCES services(id),
     joined_at         TIMESTAMP   NOT NULL,
     client_timestamp  TIMESTAMP,
@@ -176,7 +176,7 @@ CREATE TABLE queue_entries (
     updated_by           VARCHAR(255)
 );
 
-CREATE INDEX idx_queue_barber_status ON queue_entries(barber_profile_id, status);
+CREATE INDEX idx_queue_staff_status ON queue_entries(staff_profile_id, status);
 CREATE INDEX idx_queue_shop_status   ON queue_entries(shop_id, status);
 CREATE INDEX idx_queue_joined_at     ON queue_entries(joined_at);
 
@@ -215,7 +215,7 @@ CREATE TABLE reviews (
     id                UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
     appointment_id    UUID          NOT NULL UNIQUE REFERENCES appointments(id),
     reviewer_id       UUID          NOT NULL REFERENCES users(id),
-    barber_profile_id UUID          NOT NULL REFERENCES barber_profiles(id),
+    staff_profile_id UUID          NOT NULL REFERENCES staff_profiles(id),
     rating            NUMERIC(2,1)  NOT NULL CHECK (rating >= 1.0 AND rating <= 5.0),
     comment           VARCHAR(500),
     deleted           BOOLEAN       NOT NULL DEFAULT FALSE,
@@ -226,7 +226,7 @@ CREATE TABLE reviews (
     updated_by        VARCHAR(255)
 );
 
-CREATE INDEX idx_reviews_barber ON reviews(barber_profile_id);
+CREATE INDEX idx_reviews_staff ON reviews(staff_profile_id);
 
 -- ─── SEED DEFAULT ADMIN USER ──────────────────────────────────
 -- Password is 'admin123' (BCrypt hashed)

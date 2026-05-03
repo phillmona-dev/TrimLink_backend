@@ -15,7 +15,7 @@ public class QueueUpdatedEvent {
     private UUID customerId;
     private String customerPhone;
     private String customerName;
-    private UUID barberId;
+    private UUID staffId;
     private String shopName;
     private String serviceName;
     private String eventType;   // JOINED | CALLED | SERVICE_STARTED | COMPLETED | CANCELLED
@@ -45,7 +45,7 @@ public class QueueUpdatedEvent {
                 .customerId(e.getCustomer().getId())
                 .customerPhone(e.getCustomer().getPhoneNumber())
                 .customerName(e.getCustomer().getFirstName() + " " + e.getCustomer().getLastName())
-                .barberId(e.getBarber().getId())
+                .staffId(e.getStaff().getId())
                 .shopName(e.getShop().getName())
                 .serviceName(e.getService().getName())
                 .occurredAt(LocalDateTime.now());

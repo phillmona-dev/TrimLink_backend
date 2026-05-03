@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-@Tag(name = "Reviews", description = "Customer reviews and barber rating APIs")
+@Tag(name = "Reviews", description = "Customer reviews and staff rating APIs")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -44,11 +44,11 @@ public class ReviewController {
         return ResponseEntity.ok(ApiResponse.ok(reviewService.getReview(reviewId)));
     }
 
-    @Operation(summary = "List reviews for a barber")
-    @GetMapping("/barbers/{barberId}/reviews")
-    public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> listBarberReviews(
-            @PathVariable UUID barberId,
+    @Operation(summary = "List reviews for a staff")
+    @GetMapping("/staffs/{staffId}/reviews")
+    public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> listStaffReviews(
+            @PathVariable UUID staffId,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.ok(reviewService.listBarberReviews(barberId, pageable)));
+        return ResponseEntity.ok(ApiResponse.ok(reviewService.listStaffReviews(staffId, pageable)));
     }
 }

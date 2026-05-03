@@ -2,14 +2,14 @@ package com.trimlink.module.user.service;
 
 import com.trimlink.common.exception.BusinessException;
 import com.trimlink.common.exception.ResourceNotFoundException;
-import com.trimlink.module.user.dto.BarberScheduleRequest;
-import com.trimlink.module.user.dto.BarberScheduleResponse;
+import com.trimlink.module.user.dto.StaffScheduleRequest;
+import com.trimlink.module.user.dto.StaffScheduleResponse;
 import com.trimlink.module.user.dto.BreakTimeRequest;
-import com.trimlink.module.user.entity.BarberProfile;
-import com.trimlink.module.user.entity.BarberSchedule;
+import com.trimlink.module.user.entity.StaffProfile;
+import com.trimlink.module.user.entity.StaffSchedule;
 import com.trimlink.module.user.entity.BreakTime;
-import com.trimlink.module.user.repository.BarberProfileRepository;
-import com.trimlink.module.user.repository.BarberScheduleRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
+import com.trimlink.module.user.repository.StaffScheduleRepository;
 import com.trimlink.module.user.repository.BreakTimeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,35 +22,35 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Manages a barber's personal working schedule and break times.
+ * Manages a staff's personal working schedule and break times.
  *
  * Schedule hierarchy during slot generation:
- *   1. If BarberSchedule exists for that day → use it (can override shop hours)
- *   2. If BarberSchedule.dayOff = true → no slots
- *   3. If no BarberSchedule → fall back to ShopWorkingHours
+ *   1. If StaffSchedule exists for that day → use it (can override shop hours)
+ *   2. If StaffSchedule.dayOff = true → no slots
+ *   3. If no StaffSchedule → fall back to ShopWorkingHours
  *   4. Within the schedule, slot overlap with any BreakTime → mark unavailable
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class BarberScheduleService {
+public class StaffScheduleService {
 
-    private final BarberScheduleRepository scheduleRepository;
+    private final StaffScheduleRepository scheduleRepository;
     private final BreakTimeRepository      breakTimeRepository;
-    private final BarberProfileRepository  barberProfileRepository;
+    private final StaffProfileRepository  staffProfileRepository;
 
     // ─── Get Week Schedule ─────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public List<BarberScheduleResponse> getWeekSchedule(UUID barberId) {
-        return scheduleRepository.findWeekSchedule(barberId).stream()
+    public List<StaffScheduleResponse> getWeekSchedule(UUID staffId) {
+        return scheduleRepository.findWeekSchedule(staffId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public BarberScheduleResponse getDaySchedule(UUID barberId, DayOfWeek day) {
-        return scheduleRepository.findByBarberAndDay(barberId, day)
+    public StaffScheduleResponse getDaySchedule(UUID staffId, DayOfWeek day) {
+        return scheduleRepository.findByStaffAndDay(staffId, day)
                 .map(this::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No schedule set for " + day + " — falls back to shop hours."));
@@ -59,19 +59,19 @@ public class BarberScheduleService {
     // ─── Upsert Day Schedule ───────────────────────────────────────────────
 
     @Transactional
-    public BarberScheduleResponse upsertSchedule(UUID barberId, BarberScheduleRequest req) {
-        BarberProfile barber = barberProfileRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", barberId));
+    public StaffScheduleResponse upsertSchedule(UUID staffId, StaffScheduleRequest req) {
+        StaffProfile staff = staffProfileRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", staffId));
 
         // Validate times
         if (!req.isDayOff() && req.getStartTime().isAfter(req.getEndTime())) {
             throw new BusinessException("Start time must be before end time.");
         }
 
-        BarberSchedule schedule = scheduleRepository
-                .findByBarberAndDay(barberId, req.getDayOfWeek())
-                .orElseGet(() -> BarberSchedule.builder()
-                        .barberProfile(barber)
+        StaffSchedule schedule = scheduleRepository
+                .findByStaffAndDay(staffId, req.getDayOfWeek())
+                .orElseGet(() -> StaffSchedule.builder()
+                        .staffProfile(staff)
                         .dayOfWeek(req.getDayOfWeek())
                         .build());
 
@@ -80,15 +80,15 @@ public class BarberScheduleService {
         schedule.setDayOff(req.isDayOff());
 
         schedule = scheduleRepository.save(schedule);
-        log.info("Saved schedule for barber={} day={}", barberId, req.getDayOfWeek());
+        log.info("Saved schedule for staff={} day={}", staffId, req.getDayOfWeek());
         return toResponse(schedule);
     }
 
     // ─── Break Time CRUD ───────────────────────────────────────────────────
 
     @Transactional
-    public BarberScheduleResponse addBreak(UUID scheduleId, BreakTimeRequest req) {
-        BarberSchedule schedule = findSchedule(scheduleId);
+    public StaffScheduleResponse addBreak(UUID scheduleId, BreakTimeRequest req) {
+        StaffSchedule schedule = findSchedule(scheduleId);
 
         // Validate break falls within working hours
         if (req.getStartTime().isBefore(schedule.getStartTime()) ||
@@ -109,7 +109,7 @@ public class BarberScheduleService {
         }
 
         BreakTime brk = BreakTime.builder()
-                .barberSchedule(schedule)
+                .staffSchedule(schedule)
                 .label(req.getLabel())
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
@@ -120,8 +120,8 @@ public class BarberScheduleService {
     }
 
     @Transactional
-    public BarberScheduleResponse removeBreak(UUID scheduleId, UUID breakId) {
-        BarberSchedule schedule = findSchedule(scheduleId);
+    public StaffScheduleResponse removeBreak(UUID scheduleId, UUID breakId) {
+        StaffSchedule schedule = findSchedule(scheduleId);
         schedule.getBreakTimes().removeIf(b -> b.getId().equals(breakId));
         return toResponse(scheduleRepository.save(schedule));
     }
@@ -130,16 +130,16 @@ public class BarberScheduleService {
 
     @Transactional
     public void deleteSchedule(UUID scheduleId) {
-        BarberSchedule schedule = findSchedule(scheduleId);
+        StaffSchedule schedule = findSchedule(scheduleId);
         schedule.softDelete();
         scheduleRepository.save(schedule);
     }
 
     // ─── Mappers ───────────────────────────────────────────────────────────
 
-    private BarberScheduleResponse toResponse(BarberSchedule s) {
-        List<BarberScheduleResponse.BreakTimeDto> breaks = s.getBreakTimes().stream()
-                .map(b -> BarberScheduleResponse.BreakTimeDto.builder()
+    private StaffScheduleResponse toResponse(StaffSchedule s) {
+        List<StaffScheduleResponse.BreakTimeDto> breaks = s.getBreakTimes().stream()
+                .map(b -> StaffScheduleResponse.BreakTimeDto.builder()
                         .id(b.getId())
                         .label(b.getLabel())
                         .startTime(b.getStartTime())
@@ -147,9 +147,9 @@ public class BarberScheduleService {
                         .build())
                 .collect(Collectors.toList());
 
-        return BarberScheduleResponse.builder()
+        return StaffScheduleResponse.builder()
                 .id(s.getId())
-                .barberId(s.getBarberProfile().getId())
+                .staffId(s.getStaffProfile().getId())
                 .dayOfWeek(s.getDayOfWeek())
                 .startTime(s.getStartTime())
                 .endTime(s.getEndTime())
@@ -158,8 +158,8 @@ public class BarberScheduleService {
                 .build();
     }
 
-    private BarberSchedule findSchedule(UUID id) {
+    private StaffSchedule findSchedule(UUID id) {
         return scheduleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberSchedule", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException("StaffSchedule", "id", id));
     }
 }

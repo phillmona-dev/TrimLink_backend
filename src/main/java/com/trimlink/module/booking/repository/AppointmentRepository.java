@@ -19,20 +19,20 @@ import java.util.UUID;
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 
     /**
-     * Overlap detection: finds any active appointment for a barber that
+     * Overlap detection: finds any active appointment for a staff that
      * intersects the requested [start, end) window.
      * Uses pessimistic write lock to prevent race conditions during concurrent booking.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT a FROM Appointment a
-            WHERE a.barber.id = :barberId
+            WHERE a.staff.id = :staffId
               AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
               AND a.scheduledStart < :end
               AND a.scheduledEnd > :start
             """)
     List<Appointment> findOverlapping(
-            @Param("barberId") UUID barberId,
+            @Param("staffId") UUID staffId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
@@ -43,7 +43,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     @Query("""
             SELECT a FROM Appointment a
             JOIN FETCH a.service s
-            JOIN FETCH a.barber b
+            JOIN FETCH a.staff b
             JOIN FETCH b.user u
             JOIN FETCH a.shop sh
             WHERE a.customer.id = :customerId
@@ -52,21 +52,21 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     Page<Appointment> findByCustomerId(@Param("customerId") UUID customerId, Pageable pageable);
 
     /**
-     * Barber's schedule for a given day - used for dashboard + slot generation.
+     * Staff's schedule for a given day - used for dashboard + slot generation.
      */
     @Query("""
             SELECT a FROM Appointment a
             JOIN FETCH a.service
             JOIN FETCH a.customer c
-            WHERE a.barber.id = :barberId
+            WHERE a.staff.id = :staffId
               AND a.scheduledStart >= :dayStart
               AND a.scheduledStart < :dayEnd
               AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
               AND a.deleted = false
             ORDER BY a.scheduledStart
             """)
-    List<Appointment> findBarberDaySchedule(
-            @Param("barberId") UUID barberId,
+    List<Appointment> findStaffDaySchedule(
+            @Param("staffId") UUID staffId,
             @Param("dayStart") LocalDateTime dayStart,
             @Param("dayEnd") LocalDateTime dayEnd
     );
@@ -88,14 +88,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     @Query("""
             SELECT a FROM Appointment a
-            WHERE a.barber.user.id = :userId
+            WHERE a.staff.user.id = :userId
               AND a.status = :status
               AND a.deleted = false
             """)
-    Page<Appointment> findByBarberUserIdAndStatus(@Param("userId") UUID userId, @Param("status") AppointmentStatus status, Pageable pageable);
+    Page<Appointment> findByStaffUserIdAndStatus(@Param("userId") UUID userId, @Param("status") AppointmentStatus status, Pageable pageable);
 
-    Page<Appointment> findByBarberIdAndStatusAndDeletedFalse(
-            UUID barberId, AppointmentStatus status, Pageable pageable);
+    Page<Appointment> findByStaffIdAndStatusAndDeletedFalse(
+            UUID staffId, AppointmentStatus status, Pageable pageable);
 
     Page<Appointment> findByShopIdAndDeletedFalse(UUID shopId, Pageable pageable);
 
@@ -103,10 +103,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     long countByStatusAndDeletedFalse(AppointmentStatus status);
 
-    long countByBarberIdAndStatusAndDeletedFalse(UUID barberId, AppointmentStatus status);
+    long countByStaffIdAndStatusAndDeletedFalse(UUID staffId, AppointmentStatus status);
 
-    long countByBarberIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
-            UUID barberId, AppointmentStatus status, LocalDateTime from, LocalDateTime to);
+    long countByStaffIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+            UUID staffId, AppointmentStatus status, LocalDateTime from, LocalDateTime to);
 
     @Query("""
             SELECT COUNT(a) FROM Appointment a

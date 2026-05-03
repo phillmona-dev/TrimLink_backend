@@ -14,11 +14,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByPhoneNumber(String phoneNumber);
     boolean existsByPhoneNumber(String phoneNumber);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"barberProfile", "barberProfile.shop"})
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"staffProfile", "staffProfile.shop"})
     org.springframework.data.domain.Page<User> findAll(org.springframework.data.domain.Pageable pageable);
 
     long countByDeletedFalse();
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"barberProfile", "barberProfile.shop"})
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"staffProfile", "staffProfile.shop"})
     java.util.List<User> findByApprovalStatusAndDeletedFalse(com.trimlink.module.user.entity.ApprovalStatus status);
 }

@@ -7,10 +7,10 @@ import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.entity.Review;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.booking.repository.ReviewRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,23 +39,23 @@ class ReviewServiceTest {
     @Mock private ReviewRepository reviewRepository;
     @Mock private AppointmentRepository appointmentRepository;
     @Mock private UserRepository userRepository;
-    @Mock private BarberProfileRepository barberProfileRepository;
+    @Mock private StaffProfileRepository staffProfileRepository;
 
     @InjectMocks
     private ReviewService reviewService;
 
     private UUID appointmentId;
     private UUID customerId;
-    private UUID barberId;
+    private UUID staffId;
     private User customer;
-    private BarberProfile barberProfile;
+    private StaffProfile staffProfile;
     private Appointment appointment;
 
     @BeforeEach
     void setUp() {
         appointmentId = UUID.randomUUID();
         customerId = UUID.randomUUID();
-        barberId = UUID.randomUUID();
+        staffId = UUID.randomUUID();
 
         customer = User.builder()
                 .phoneNumber("+251912123456")
@@ -65,21 +65,21 @@ class ReviewServiceTest {
                 .build();
         customer.setId(customerId);
 
-        User barberUser = User.builder()
+        User staffUser = User.builder()
                 .phoneNumber("+251911654321")
                 .firstName("Dawit")
                 .lastName("Haile")
-                .role(Role.BARBER)
+                .role(Role.STAFF)
                 .build();
 
-        barberProfile = BarberProfile.builder()
-                .user(barberUser)
+        staffProfile = StaffProfile.builder()
+                .user(staffUser)
                 .build();
-        barberProfile.setId(barberId);
+        staffProfile.setId(staffId);
 
         appointment = Appointment.builder()
                 .customer(customer)
-                .barber(barberProfile)
+                .staff(staffProfile)
                 .status(AppointmentStatus.COMPLETED)
                 .priceCharged(new BigDecimal("150.00"))
                 .build();
@@ -87,7 +87,7 @@ class ReviewServiceTest {
     }
 
     @Test
-    @DisplayName("Creates a review for completed appointment and refreshes barber rating")
+    @DisplayName("Creates a review for completed appointment and refreshes staff rating")
     void createReview_success() {
         CreateReviewRequest request = new CreateReviewRequest();
         request.setRating(new BigDecimal("4.5"));
@@ -96,23 +96,23 @@ class ReviewServiceTest {
         when(appointmentRepository.findById(appointmentId)).thenReturn(Optional.of(appointment));
         when(reviewRepository.existsByAppointmentId(appointmentId)).thenReturn(false);
         when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
-        when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barberProfile));
+        when(staffProfileRepository.findById(staffId)).thenReturn(Optional.of(staffProfile));
         when(reviewRepository.save(any())).thenAnswer(invocation -> {
             Review saved = invocation.getArgument(0);
             saved.setId(UUID.randomUUID());
             return saved;
         });
-        when(reviewRepository.calculateAverageRating(barberId)).thenReturn(new BigDecimal("4.5"));
-        when(reviewRepository.countByBarberProfileId(barberId)).thenReturn(1L);
-        when(barberProfileRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(reviewRepository.calculateAverageRating(staffId)).thenReturn(new BigDecimal("4.5"));
+        when(reviewRepository.countByStaffProfileId(staffId)).thenReturn(1L);
+        when(staffProfileRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = reviewService.createReview(appointmentId, customerId, request);
 
         assertThat(response.getAppointmentId()).isEqualTo(appointmentId);
-        assertThat(response.getBarberId()).isEqualTo(barberId);
+        assertThat(response.getStaffId()).isEqualTo(staffId);
         assertThat(response.getRating()).isEqualByComparingTo("4.5");
-        assertThat(barberProfile.getAverageRating()).isEqualByComparingTo("4.50");
-        assertThat(barberProfile.getTotalReviews()).isEqualTo(1);
+        assertThat(staffProfile.getAverageRating()).isEqualByComparingTo("4.50");
+        assertThat(staffProfile.getTotalReviews()).isEqualTo(1);
     }
 
     @Test

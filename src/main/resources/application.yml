@@ -36,7 +36,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:6380}
       password: ${REDIS_PASSWORD:}
       timeout: 5000ms
       lettuce:
@@ -83,6 +83,13 @@ server:
 trimlink:
   app:
     base-url: ${APP_BASE_URL:http://localhost:9090/api/v1}
+  storage:
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://localhost:9002}
+      access-key: ${MINIO_ACCESS_KEY:trimlink}
+      secret-key: ${MINIO_SECRET_KEY:trimlink123}
+      bucket: ${MINIO_BUCKET:trimlink-media}
+      public-url: ${MINIO_PUBLIC_URL:http://localhost:9002}
   security:
     jwt:
       secret: ${JWT_SECRET:bXlfc3VwZXJfc2VjcmV0X2tleV9mb3JfdHJpbWxpbmtfYXBwbGljYXRpb25fdGhhdF9pc192ZXJ5X2xvbmc=}

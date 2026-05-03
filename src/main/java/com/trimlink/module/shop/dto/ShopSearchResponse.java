@@ -1,6 +1,6 @@
 package com.trimlink.module.shop.dto;
 
-import com.trimlink.module.shop.entity.BarberShop;
+import com.trimlink.module.shop.entity.StaffShop;
 import lombok.Builder;
 import lombok.Data;
 
@@ -21,7 +21,7 @@ public class ShopSearchResponse {
     private String ownerName;
     private String ownerPhone;
 
-    public static ShopSearchResponse from(BarberShop shop, String ownerName, String ownerPhone) {
+    public static ShopSearchResponse from(StaffShop shop, String ownerName, String ownerPhone) {
         return ShopSearchResponse.builder()
                 .id(shop.getId())
                 .name(shop.getName())

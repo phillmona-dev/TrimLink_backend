@@ -10,9 +10,9 @@ import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.entity.Review;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.booking.repository.ReviewRepository;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
-    private final BarberProfileRepository barberProfileRepository;
+    private final StaffProfileRepository staffProfileRepository;
 
     @Transactional
     public ReviewResponse createReview(UUID appointmentId, UUID reviewerId, CreateReviewRequest request) {
@@ -51,22 +51,22 @@ public class ReviewService {
 
         User reviewer = userRepository.findById(reviewerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerId));
-        BarberProfile barber = barberProfileRepository.findById(appointment.getBarber().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", appointment.getBarber().getId()));
+        StaffProfile staff = staffProfileRepository.findById(appointment.getStaff().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", appointment.getStaff().getId()));
 
         Review review = Review.builder()
                 .appointment(appointment)
                 .reviewer(reviewer)
-                .barberProfile(barber)
+                .staffProfile(staff)
                 .rating(request.getRating().setScale(1, java.math.RoundingMode.HALF_UP))
                 .comment(request.getComment())
                 .build();
 
         review = reviewRepository.save(review);
-        refreshBarberRatingSummary(barber);
+        refreshStaffRatingSummary(staff);
 
-        log.info("Created review {} for appointment={} barber={} reviewer={}",
-                review.getId(), appointmentId, barber.getId(), reviewerId);
+        log.info("Created review {} for appointment={} staff={} reviewer={}",
+                review.getId(), appointmentId, staff.getId(), reviewerId);
         return toResponse(review);
     }
 
@@ -77,32 +77,32 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ReviewResponse> listBarberReviews(UUID barberId, Pageable pageable) {
-        barberProfileRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberProfile", "id", barberId));
+    public PageResponse<ReviewResponse> listStaffReviews(UUID staffId, Pageable pageable) {
+        staffProfileRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("StaffProfile", "id", staffId));
 
-        var page = reviewRepository.findByBarberProfileId(barberId, PageRequest.of(
+        var page = reviewRepository.findByStaffProfileId(staffId, PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort()));
         return PageResponse.from(page.map(this::toResponse));
     }
 
-    private void refreshBarberRatingSummary(BarberProfile barber) {
-        BigDecimal average = reviewRepository.calculateAverageRating(barber.getId());
-        long total = reviewRepository.countByBarberProfileId(barber.getId());
-        barber.updateRatingSummary(
+    private void refreshStaffRatingSummary(StaffProfile staff) {
+        BigDecimal average = reviewRepository.calculateAverageRating(staff.getId());
+        long total = reviewRepository.countByStaffProfileId(staff.getId());
+        staff.updateRatingSummary(
                 average != null ? average.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO,
                 total
         );
-        barberProfileRepository.save(barber);
+        staffProfileRepository.save(staff);
     }
 
     private ReviewResponse toResponse(Review review) {
         return ReviewResponse.builder()
                 .reviewId(review.getId())
                 .appointmentId(review.getAppointment().getId())
-                .barberId(review.getBarberProfile().getId())
-                .barberName(review.getBarberProfile().getUser().getFirstName() + " "
-                        + review.getBarberProfile().getUser().getLastName())
+                .staffId(review.getStaffProfile().getId())
+                .staffName(review.getStaffProfile().getUser().getFirstName() + " "
+                        + review.getStaffProfile().getUser().getLastName())
                 .reviewerId(review.getReviewer().getId())
                 .reviewerName(review.getReviewer().getFirstName() + " " + review.getReviewer().getLastName())
                 .rating(review.getRating())

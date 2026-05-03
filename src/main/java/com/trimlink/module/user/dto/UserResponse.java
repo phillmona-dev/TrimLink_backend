@@ -29,13 +29,13 @@ public class UserResponse {
     private boolean phoneVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private BarberProfileResponse barberProfile;
+    private StaffProfileResponse staffProfile;
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class BarberProfileResponse {
+    public static class StaffProfileResponse {
         private UUID id;
         private String bio;
         private Integer experienceYears;
@@ -60,26 +60,26 @@ public class UserResponse {
     public static UserResponse from(User user) {
         if (user == null) return null;
         
-        BarberProfileResponse profileRes = null;
-        if (user.getBarberProfile() != null) {
+        StaffProfileResponse profileRes = null;
+        if (user.getStaffProfile() != null) {
             ShopResponse shopRes = null;
-            if (user.getBarberProfile().getShop() != null) {
+            if (user.getStaffProfile().getShop() != null) {
                 shopRes = ShopResponse.builder()
-                        .id(user.getBarberProfile().getShop().getId())
-                        .name(user.getBarberProfile().getShop().getName())
-                        .city(user.getBarberProfile().getShop().getCity())
-                        .address(user.getBarberProfile().getShop().getAddress())
-                        .phone(user.getBarberProfile().getShop().getPhone())
+                        .id(user.getStaffProfile().getShop().getId())
+                        .name(user.getStaffProfile().getShop().getName())
+                        .city(user.getStaffProfile().getShop().getCity())
+                        .address(user.getStaffProfile().getShop().getAddress())
+                        .phone(user.getStaffProfile().getShop().getPhone())
                         .build();
             }
 
-            profileRes = BarberProfileResponse.builder()
-                    .id(user.getBarberProfile().getId())
-                    .bio(user.getBarberProfile().getBio())
-                    .experienceYears(user.getBarberProfile().getExperienceYears())
-                    .averageRating(user.getBarberProfile().getAverageRating() != null ? user.getBarberProfile().getAverageRating().doubleValue() : 0.0)
-                    .totalReviews(user.getBarberProfile().getTotalReviews())
-                    .available(user.getBarberProfile().isAvailable())
+            profileRes = StaffProfileResponse.builder()
+                    .id(user.getStaffProfile().getId())
+                    .bio(user.getStaffProfile().getBio())
+                    .experienceYears(user.getStaffProfile().getExperienceYears())
+                    .averageRating(user.getStaffProfile().getAverageRating() != null ? user.getStaffProfile().getAverageRating().doubleValue() : 0.0)
+                    .totalReviews(user.getStaffProfile().getTotalReviews())
+                    .available(user.getStaffProfile().isAvailable())
                     .shop(shopRes)
                     .build();
         }
@@ -98,7 +98,7 @@ public class UserResponse {
                 .phoneVerified(user.isPhoneVerified())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
-                .barberProfile(profileRes)
+                .staffProfile(profileRes)
                 .build();
     }
 }

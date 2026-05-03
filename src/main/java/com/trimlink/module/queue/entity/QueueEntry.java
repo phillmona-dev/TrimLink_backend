@@ -2,8 +2,8 @@ package com.trimlink.module.queue.entity;
 
 import com.trimlink.common.audit.BaseEntity;
 import com.trimlink.module.service.entity.Service;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,9 +11,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * Represents a walk-in customer in the per-barber FIFO queue.
+ * Represents a walk-in customer in the per-staff FIFO queue.
  *
- * Queue ordering is determined by (barberId, joinedAt ASC).
+ * Queue ordering is determined by (staffId, joinedAt ASC).
  * Position numbers are virtual — computed at query time — so there's no
  * "position" column that needs to be updated when someone leaves.
  *
@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "queue_entries", indexes = {
-        @Index(name = "idx_queue_barber_status", columnList = "barber_profile_id, status"),
+        @Index(name = "idx_queue_staff_status", columnList = "staff_profile_id, status"),
         @Index(name = "idx_queue_shop_status",   columnList = "shop_id, status"),
         @Index(name = "idx_queue_joined_at",     columnList = "joined_at")
 })
@@ -38,12 +38,12 @@ public class QueueEntry extends BaseEntity {
     private User customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_profile_id", nullable = false)
-    private BarberProfile barber;
+    @JoinColumn(name = "staff_profile_id", nullable = false)
+    private StaffProfile staff;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
-    private BarberShop shop;
+    private StaffShop shop;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)

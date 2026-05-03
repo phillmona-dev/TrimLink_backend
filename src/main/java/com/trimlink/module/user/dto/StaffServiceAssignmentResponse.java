@@ -9,9 +9,9 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class BarberServiceAssignmentResponse {
+public class StaffServiceAssignmentResponse {
     private UUID assignmentId;
-    private UUID barberId;
+    private UUID staffId;
     private UUID serviceId;
     private String serviceName;
     private String serviceDescription;

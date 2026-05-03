@@ -15,14 +15,14 @@ import java.util.UUID;
 @Repository
 public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
-    Page<Review> findByBarberProfileId(UUID barberId, Pageable pageable);
+    Page<Review> findByStaffProfileId(UUID staffId, Pageable pageable);
 
     boolean existsByAppointmentId(UUID appointmentId);
 
-    long countByBarberProfileId(UUID barberId);
+    long countByStaffProfileId(UUID staffId);
 
     Optional<Review> findByIdAndDeletedFalse(UUID reviewId);
 
-    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.barberProfile.id = :barberId")
-    BigDecimal calculateAverageRating(@Param("barberId") UUID barberId);
+    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.staffProfile.id = :staffId")
+    BigDecimal calculateAverageRating(@Param("staffId") UUID staffId);
 }

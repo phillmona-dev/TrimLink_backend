@@ -10,14 +10,14 @@ import com.trimlink.module.shop.entity.DailyWorkLog;
 import com.trimlink.module.shop.repository.DailyWorkLogRepository;
 import com.trimlink.module.shop.dto.ShopSearchResponse;
 import com.trimlink.module.shop.dto.ShopStatsResponse;
-import com.trimlink.module.shop.entity.BarberShop;
-import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.entity.StaffShop;
+import com.trimlink.module.shop.repository.StaffShopRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import com.trimlink.module.user.dto.UserResponse;
-import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.user.entity.StaffProfile;
 import com.trimlink.module.user.entity.Role;
-import com.trimlink.module.user.repository.BarberProfileRepository;
+import com.trimlink.module.user.repository.StaffProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,36 +33,36 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ShopService {
 
-    private final BarberShopRepository shopRepository;
-    private final BarberProfileRepository barberProfileRepository;
+    private final StaffShopRepository shopRepository;
+    private final StaffProfileRepository staffProfileRepository;
     private final DailyWorkLogRepository dailyWorkLogRepository;
     private final AppointmentRepository appointmentRepository;
     private final QueueEntryRepository queueEntryRepository;
 
     @Transactional(readOnly = true)
     public Page<ShopSearchResponse> searchShops(String q, String city, Pageable pageable) {
-        Page<BarberShop> shops = (q != null && !q.isBlank())
+        Page<StaffShop> shops = (q != null && !q.isBlank())
                 ? shopRepository.search(q.trim(), pageable)
                 : (city != null && !city.isBlank())
                     ? shopRepository.findByCityAndActiveTrue(city, pageable)
                     : shopRepository.findByActiveTrue(pageable);
 
         return shops.map(shop -> {
-            // Find the owner in the barbers list (which might be lazily loaded but we are in a transaction)
+            // Find the owner in the staffs list (which might be lazily loaded but we are in a transaction)
             String ownerName = "Unknown";
             String ownerPhone = "";
             
-            // We can't rely on shop.getBarbers() because of @JsonIgnore and LAZY loading issues if not handled carefully
+            // We can't rely on shop.getStaffs() because of @JsonIgnore and LAZY loading issues if not handled carefully
             // But here we are in @Transactional(readOnly = true), so we can access it if we want, 
-            // OR we can query the barberProfileRepository specifically for the owner of this shop.
+            // OR we can query the staffProfileRepository specifically for the owner of this shop.
             
-            List<BarberProfile> owners = barberProfileRepository.findByShopIdAndDeletedFalse(shop.getId(), Pageable.unpaged())
+            List<StaffProfile> owners = staffProfileRepository.findByShopIdAndDeletedFalse(shop.getId(), Pageable.unpaged())
                     .getContent().stream()
                     .filter(b -> b.getUser().getRole() == Role.OWNER)
                     .toList();
             
             if (!owners.isEmpty()) {
-                BarberProfile owner = owners.get(0);
+                StaffProfile owner = owners.get(0);
                 ownerName = owner.getUser().getFirstName() + " " + owner.getUser().getLastName();
                 ownerPhone = owner.getUser().getPhoneNumber();
             }
@@ -73,33 +73,33 @@ public class ShopService {
 
     @Transactional(readOnly = true)
     public List<StaffPerformanceResponse> getStaffPerformance(UUID shopId) {
-        List<BarberProfile> barbers = barberProfileRepository.findByShopIdAndDeletedFalse(shopId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        List<StaffProfile> staffs = staffProfileRepository.findByShopIdAndDeletedFalse(shopId, org.springframework.data.domain.Pageable.unpaged()).getContent();
         
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
 
-        return barbers.stream().map(barber -> {
-            int manualLogs = dailyWorkLogRepository.findByBarberIdAndLogDate(barber.getId(), today)
+        return staffs.stream().map(staff -> {
+            int manualLogs = dailyWorkLogRepository.findByStaffIdAndLogDate(staff.getId(), today)
                     .map(DailyWorkLog::getCustomerCount)
                     .orElse(0);
 
-            long appointments = appointmentRepository.countByBarberIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
-                    barber.getId(), AppointmentStatus.COMPLETED, startOfDay, endOfDay);
+            long appointments = appointmentRepository.countByStaffIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                    staff.getId(), AppointmentStatus.COMPLETED, startOfDay, endOfDay);
             
-            long queueEntries = queueEntryRepository.countCompletedSince(barber.getId(), startOfDay);
+            long queueEntries = queueEntryRepository.countCompletedSince(staff.getId(), startOfDay);
 
             int totalToday = manualLogs + (int)appointments + (int)queueEntries;
 
             return StaffPerformanceResponse.builder()
-                    .user(UserResponse.from(barber.getUser()))
-                    .barberId(barber.getId())
-                    .available(barber.isAvailable())
+                    .user(UserResponse.from(staff.getUser()))
+                    .staffId(staff.getId())
+                    .available(staff.isAvailable())
                     .customersToday(totalToday)
                     .manualLogsToday(manualLogs)
                     .appBookingsToday((int)appointments + (int)queueEntries)
-                    .totalReviews(barber.getTotalReviews())
-                    .averageRating(barber.getAverageRating() != null ? barber.getAverageRating().doubleValue() : 0.0)
+                    .totalReviews(staff.getTotalReviews())
+                    .averageRating(staff.getAverageRating() != null ? staff.getAverageRating().doubleValue() : 0.0)
                     .weeklyAverage(0.0) // For now
                     .build();
         }).toList();
@@ -107,13 +107,13 @@ public class ShopService {
 
     @Transactional(readOnly = true)
     public List<WeeklyPerformanceResponse> getWeeklyReport(UUID shopId) {
-        List<BarberProfile> barbers = barberProfileRepository.findByShopIdAndDeletedFalse(shopId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+        List<StaffProfile> staffs = staffProfileRepository.findByShopIdAndDeletedFalse(shopId, org.springframework.data.domain.Pageable.unpaged()).getContent();
         
         LocalDate today = LocalDate.now();
         LocalDate sevenDaysAgo = today.minusDays(6);
 
-        return barbers.stream().map(barber -> {
-            List<DailyWorkLog> logs = dailyWorkLogRepository.findByBarberIdAndLogDateBetween(barber.getId(), sevenDaysAgo, today);
+        return staffs.stream().map(staff -> {
+            List<DailyWorkLog> logs = dailyWorkLogRepository.findByStaffIdAndLogDateBetween(staff.getId(), sevenDaysAgo, today);
             
             // For simplicity, we aggregate total for the week
             int manualTotal = logs.stream().mapToInt(DailyWorkLog::getCustomerCount).sum();
@@ -121,14 +121,14 @@ public class ShopService {
             LocalDateTime startOfWeek = sevenDaysAgo.atStartOfDay();
             LocalDateTime endOfWeek = today.plusDays(1).atStartOfDay();
 
-            long appTotal = appointmentRepository.countByBarberIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
-                    barber.getId(), AppointmentStatus.COMPLETED, startOfWeek, endOfWeek);
+            long appTotal = appointmentRepository.countByStaffIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                    staff.getId(), AppointmentStatus.COMPLETED, startOfWeek, endOfWeek);
             
-            long queueTotal = queueEntryRepository.countCompletedSince(barber.getId(), startOfWeek);
+            long queueTotal = queueEntryRepository.countCompletedSince(staff.getId(), startOfWeek);
 
             return WeeklyPerformanceResponse.builder()
-                    .barberName(barber.getUser().getFirstName() + " " + barber.getUser().getLastName())
-                    .barberId(barber.getId())
+                    .staffName(staff.getUser().getFirstName() + " " + staff.getUser().getLastName())
+                    .staffId(staff.getId())
                     .totalCustomers((int) (manualTotal + appTotal + queueTotal))
                     .appBookings((int) (appTotal + queueTotal))
                     .manualEntries(manualTotal)
@@ -138,11 +138,11 @@ public class ShopService {
     }
 
     @Transactional
-    public void logDailyWork(UUID barberId, int count, String notes) {
+    public void logDailyWork(UUID staffId, int count, String notes) {
         LocalDate today = LocalDate.now();
-        DailyWorkLog log = dailyWorkLogRepository.findByBarberIdAndLogDate(barberId, today)
+        DailyWorkLog log = dailyWorkLogRepository.findByStaffIdAndLogDate(staffId, today)
                 .orElse(DailyWorkLog.builder()
-                        .barberId(barberId)
+                        .staffId(staffId)
                         .logDate(today)
                         .build());
         

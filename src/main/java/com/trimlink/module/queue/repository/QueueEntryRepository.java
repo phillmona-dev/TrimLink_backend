@@ -16,62 +16,62 @@ import java.util.UUID;
 public interface QueueEntryRepository extends JpaRepository<QueueEntry, UUID> {
 
     /**
-     * Full active queue for a barber ordered by joinedAt (FIFO).
+     * Full active queue for a staff ordered by joinedAt (FIFO).
      * JOIN FETCH prevents N+1 when rendering the queue dashboard.
      */
     @Query("""
             SELECT q FROM QueueEntry q
             JOIN FETCH q.customer c
             JOIN FETCH q.service s
-            WHERE q.barber.id = :barberId
+            WHERE q.staff.id = :staffId
               AND q.status IN ('WAITING', 'CALLED', 'IN_SERVICE')
               AND q.deleted = false
             ORDER BY q.joinedAt ASC
             """)
-    List<QueueEntry> findActiveQueueByBarber(@Param("barberId") UUID barberId);
+    List<QueueEntry> findActiveQueueByStaff(@Param("staffId") UUID staffId);
 
     /**
-     * All WAITING entries ahead of a given joinedAt timestamp for a barber.
+     * All WAITING entries ahead of a given joinedAt timestamp for a staff.
      * Used to calculate queue position and ETA.
      */
     @Query("""
             SELECT q FROM QueueEntry q
             JOIN FETCH q.service s
-            WHERE q.barber.id = :barberId
+            WHERE q.staff.id = :staffId
               AND q.status = 'WAITING'
               AND q.joinedAt < :myJoinedAt
               AND q.deleted = false
             ORDER BY q.joinedAt ASC
             """)
     List<QueueEntry> findEntriesAheadOf(
-            @Param("barberId") UUID barberId,
+            @Param("staffId") UUID staffId,
             @Param("myJoinedAt") LocalDateTime myJoinedAt
     );
 
     /**
-     * Currently active entry for the barber (IN_SERVICE or CALLED).
+     * Currently active entry for the staff (IN_SERVICE or CALLED).
      */
     @Query("""
             SELECT q FROM QueueEntry q
-            WHERE q.barber.id = :barberId
+            WHERE q.staff.id = :staffId
               AND q.status IN ('IN_SERVICE', 'CALLED')
               AND q.deleted = false
             """)
-    Optional<QueueEntry> findCurrentEntry(@Param("barberId") UUID barberId);
+    Optional<QueueEntry> findCurrentEntry(@Param("staffId") UUID staffId);
 
     /**
      * Check if customer is already in the queue to prevent duplicate entries.
      */
-    boolean existsByCustomerIdAndBarberIdAndStatusIn(
-            UUID customerId, UUID barberId, List<QueueStatus> statuses);
+    boolean existsByCustomerIdAndStaffIdAndStatusIn(
+            UUID customerId, UUID staffId, List<QueueStatus> statuses);
 
     /**
-     * Shop-level queue view (all barbers).
+     * Shop-level queue view (all staffs).
      */
     @Query("""
             SELECT q FROM QueueEntry q
             JOIN FETCH q.customer c
-            JOIN FETCH q.barber b
+            JOIN FETCH q.staff b
             JOIN FETCH b.user u
             JOIN FETCH q.service s
             WHERE q.shop.id = :shopId
@@ -82,22 +82,22 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, UUID> {
     List<QueueEntry> findActiveQueueByShop(@Param("shopId") UUID shopId);
 
     /**
-     * Count of completed services per barber today - for admin metrics.
+     * Count of completed services per staff today - for admin metrics.
      */
     @Query("""
             SELECT COUNT(q) FROM QueueEntry q
-            WHERE q.barber.id = :barberId
+            WHERE q.staff.id = :staffId
               AND q.status = 'COMPLETED'
               AND q.serviceEndedAt >= :since
             """)
     long countCompletedSince(
-            @Param("barberId") UUID barberId,
+            @Param("staffId") UUID staffId,
             @Param("since") LocalDateTime since
     );
 
     long countByStatusInAndDeletedFalse(List<QueueStatus> statuses);
 
-    long countByBarberIdAndStatusInAndDeletedFalse(UUID barberId, List<QueueStatus> statuses);
+    long countByStaffIdAndStatusInAndDeletedFalse(UUID staffId, List<QueueStatus> statuses);
 
     @Query("""
             SELECT COUNT(q) FROM QueueEntry q

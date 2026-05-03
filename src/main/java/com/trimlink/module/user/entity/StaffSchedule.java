@@ -10,24 +10,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Barber's own working schedule for a given day.
+ * Staff's own working schedule for a given day.
  * Takes precedence over shop working hours for slot generation.
- * If no barber schedule exists for a day, falls back to shop hours.
+ * If no staff schedule exists for a day, falls back to shop hours.
  */
 @Entity
-@Table(name = "barber_schedules", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"barber_profile_id", "day_of_week"})
+@Table(name = "staff_schedules", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"staff_profile_id", "day_of_week"})
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BarberSchedule extends BaseEntity {
+public class StaffSchedule extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "barber_profile_id", nullable = false)
-    private BarberProfile barberProfile;
+    @JoinColumn(name = "staff_profile_id", nullable = false)
+    private StaffProfile staffProfile;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "day_of_week", nullable = false, length = 15)
@@ -39,12 +39,12 @@ public class BarberSchedule extends BaseEntity {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
-    /** If true, barber is off this day regardless of shop hours. */
+    /** If true, staff is off this day regardless of shop hours. */
     @Column(name = "day_off", nullable = false)
     @Builder.Default
     private boolean dayOff = false;
 
-    @OneToMany(mappedBy = "barberSchedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "staffSchedule", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BreakTime> breakTimes = new ArrayList<>();
 }

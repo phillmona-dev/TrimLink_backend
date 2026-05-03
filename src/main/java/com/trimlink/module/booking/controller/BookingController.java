@@ -41,7 +41,7 @@ public class BookingController {
     }
 
     // GET /bookings/slots — query available time slots
-    @Operation(summary = "Get available time slots for a barber on a date")
+    @Operation(summary = "Get available time slots for a staff on a date")
     @GetMapping("/slots")
     public ResponseEntity<ApiResponse<List<TimeSlotResponse>>> getSlots(
             @Valid SlotAvailabilityRequest request) {
@@ -74,49 +74,49 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(page));
     }
 
-    @Operation(summary = "Get my appointments (as barber/owner)")
-    @GetMapping("/barber")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER')")
-    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getBarberAppointments(
+    @Operation(summary = "Get my appointments (as staff/owner)")
+    @GetMapping("/staff")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER')")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getStaffAppointments(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam(required = false, defaultValue = "PENDING") com.trimlink.module.booking.entity.AppointmentStatus status,
             @PageableDefault(size = 20, sort = "scheduledStart") Pageable pageable) {
 
         PageResponse<AppointmentResponse> page = PageResponse.from(
-                bookingService.getBarberAppointments(principal.getUserId(), status, pageable));
+                bookingService.getStaffAppointments(principal.getUserId(), status, pageable));
         return ResponseEntity.ok(ApiResponse.ok(page));
     }
 
     // PATCH /bookings/{id}/confirm
-    @Operation(summary = "Confirm an appointment (barber/owner)")
+    @Operation(summary = "Confirm an appointment (staff/owner)")
     @PatchMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> confirm(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.confirmAppointment(id)));
     }
 
     // PATCH /bookings/{id}/complete
-    @Operation(summary = "Mark appointment as completed (barber)")
+    @Operation(summary = "Mark appointment as completed (staff)")
     @PatchMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> complete(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.completeAppointment(id)));
     }
 
     // PATCH /bookings/{id}/reject
-    @Operation(summary = "Reject an appointment (barber/owner)")
+    @Operation(summary = "Reject an appointment (staff/owner)")
     @PatchMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> reject(
             @PathVariable UUID id,
-            @RequestParam(required = false, defaultValue = "Rejected by barber") String reason) {
+            @RequestParam(required = false, defaultValue = "Rejected by staff") String reason) {
         return ResponseEntity.ok(ApiResponse.ok(bookingService.rejectAppointment(id, reason)));
     }
 
     // PATCH /bookings/{id}/reschedule
-    @Operation(summary = "Request appointment reschedule (barber/owner)")
+    @Operation(summary = "Request appointment reschedule (staff/owner)")
     @PatchMapping("/{id}/reschedule")
-    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STAFF', 'OWNER', 'ADMIN')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> reschedule(
             @PathVariable UUID id,
             @RequestParam(required = false, defaultValue = "Please reschedule") String reason) {
