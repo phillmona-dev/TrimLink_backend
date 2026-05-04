@@ -86,7 +86,7 @@ class NotificationConsumerTest {
         UUID userId = UUID.randomUUID();
         User user = User.builder()
                 .phoneNumber("+251933333333")
-                .firstName("Mahi")
+                .firstName("Amanuel")
                 .lastName("Birru")
                 .role(Role.CUSTOMER)
                 .build();
