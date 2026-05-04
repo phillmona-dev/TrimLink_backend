@@ -100,7 +100,7 @@ class AdminServiceTest {
                 .build();
         barber.setId(barberId);
 
-        when(barberProfileRepository.findAllActiveWithUser(any()))
+        when(barberProfileRepository.searchActiveWithUser(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(barber), PageRequest.of(0, 20), 1));
         when(appointmentRepository.countByBarberIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
                 eq(barberId), eq(AppointmentStatus.COMPLETED), any(LocalDateTime.class), any(LocalDateTime.class)))
