@@ -50,7 +50,8 @@ public class UploadController {
             }
         } catch (IOException e) {
             log.error("CRITICAL: Could not create upload directory at {}. Error: {}", uploadPath.toAbsolutePath(), e.getMessage());
-            throw e;
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "Dir creation failed: " + e.getMessage() + " at " + uploadPath.toAbsolutePath()));
         }
 
         // Generate unique filename
@@ -67,7 +68,8 @@ public class UploadController {
             log.info("Receipt uploaded successfully to: {}", filePath.toAbsolutePath());
         } catch (IOException e) {
             log.error("CRITICAL: Failed to save uploaded file to {}. Error: {}", filePath.toAbsolutePath(), e.getMessage());
-            throw e;
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error(500, "File save failed: " + e.getMessage() + " to " + filePath.toAbsolutePath()));
         }
 
         // Return URL to access the file
@@ -80,6 +82,7 @@ public class UploadController {
         Path filePath = Paths.get(uploadDir, "receipts", filename);
         if (!Files.exists(filePath)) {
             log.warn("Receipt not found: {}", filePath.toAbsolutePath());
+            // Return a 404 but with more info in logs
             return ResponseEntity.notFound().build();
         }
         byte[] bytes = Files.readAllBytes(filePath);
