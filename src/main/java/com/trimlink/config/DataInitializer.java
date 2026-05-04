@@ -46,7 +46,13 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(admin);
             log.info("Admin user created successfully with username 'admin' and password 'admin123'");
         } else {
-            log.info("Admin user 'admin' already exists. Skipping initialization.");
+            User admin = adminOpt.get();
+            log.info("Admin user 'admin' already exists. Updating password to ensure access.");
+            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setActive(true);
+            admin.setApprovalStatus(ApprovalStatus.APPROVED);
+            userRepository.save(admin);
+            log.info("Admin user 'admin' credentials refreshed.");
         }
     }
 }
