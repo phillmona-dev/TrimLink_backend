@@ -191,6 +191,24 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
             @Param("to") LocalDateTime to
     );
 
-    @Query("SELECT COUNT(DISTINCT a.customer.id) FROM Appointment a WHERE a.shop.id = :shopId AND a.deleted = false")
-    long countUniqueCustomersByShopId(@Param("shopId") UUID shopId);
+    @Query("SELECT DISTINCT a.customer.id FROM Appointment a WHERE a.shop.id = :shopId AND a.deleted = false")
+    List<UUID> findUniqueCustomerIdsByShopId(@Param("shopId") UUID shopId);
+
+    @Query("""
+            SELECT a.shop.id, a.shop.name, SUM(a.priceCharged)
+            FROM Appointment a
+            WHERE a.status = 'COMPLETED' AND a.deleted = false
+            GROUP BY a.shop.id, a.shop.name
+            """)
+    List<Object[]> sumRevenueGroupByShop();
+
+    @Query("""
+            SELECT b.id, u.firstName, u.lastName, SUM(a.priceCharged)
+            FROM Appointment a
+            JOIN a.barber b
+            JOIN b.user u
+            WHERE a.status = 'COMPLETED' AND a.deleted = false
+            GROUP BY b.id, u.firstName, u.lastName
+            """)
+    List<Object[]> sumRevenueGroupByBarber();
 }

@@ -161,6 +161,122 @@ public class AdminService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public AdminAppointmentStats getAppointmentStats() {
+        long approved = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.COMPLETED)
+                + appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.CONFIRMED);
+        long pending  = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.PENDING);
+        long rejected = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.REJECTED);
+        
+        BigDecimal totalRevenue = safeDecimal(appointmentRepository.sumRevenueByShop(null, LocalDateTime.MIN, LocalDateTime.MAX));
+        
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
+        BigDecimal revenueToday = safeDecimal(appointmentRepository.sumRevenueByShop(null, todayStart, todayEnd));
+        
+        // Admin share (10% of total revenue)
+        BigDecimal adminShare = totalRevenue.multiply(new BigDecimal("0.10"));
+
+        List<AdminAppointmentStats.ShopRevenue> shopRevenues = appointmentRepository.sumRevenueGroupByShop().stream()
+                .map(row -> AdminAppointmentStats.ShopRevenue.builder()
+                        .shopId((java.util.UUID) row[0])
+                        .shopName((String) row[1])
+                        .revenue(safeDecimal((BigDecimal) row[2]))
+                        .build())
+                .toList();
+
+        List<AdminAppointmentStats.BarberRevenue> barberRevenues = appointmentRepository.sumRevenueGroupByBarber().stream()
+                .map(row -> AdminAppointmentStats.BarberRevenue.builder()
+                        .barberId((java.util.UUID) row[0])
+                        .barberName(row[1] + " " + row[2])
+                        .revenue(safeDecimal((BigDecimal) row[3]))
+                        .build())
+                .toList();
+
+        return AdminAppointmentStats.builder()
+                .totalApproved(approved)
+                .totalPending(pending)
+                .totalRejected(rejected)
+                .totalRevenue(totalRevenue)
+                .revenueToday(revenueToday)
+                .adminShare(adminShare)
+                .shopRevenues(shopRevenues)
+                .barberRevenues(barberRevenues)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<com.trimlink.module.booking.dto.AppointmentResponse> listAllAppointments(
+            java.util.UUID shopId, 
+            java.util.UUID barberId, 
+            AppointmentStatus status,
+            LocalDate startDate,
+            LocalDate endDate,
+            String queryStr,
+            Pageable pageable) {
+        
+        // Using Specification for complex filtering
+        org.springframework.data.jpa.domain.Specification<com.trimlink.module.booking.entity.Appointment> spec = (root, query, cb) -> {
+            jakarta.persistence.criteria.Predicate predicate = cb.conjunction();
+            predicate = cb.and(predicate, cb.isFalse(root.get("deleted")));
+            
+            if (shopId != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("shop").get("id"), shopId));
+            }
+            if (barberId != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("barber").get("id"), barberId));
+            }
+            if (status != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("status"), status));
+            }
+            if (startDate != null) {
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("scheduledStart"), startDate.atStartOfDay()));
+            }
+            if (endDate != null) {
+                predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("scheduledStart"), endDate.atTime(LocalTime.MAX)));
+            }
+            if (queryStr != null && !queryStr.isBlank()) {
+                String pattern = "%" + queryStr.toLowerCase() + "%";
+                jakarta.persistence.criteria.Predicate searchPredicate = cb.or(
+                    cb.like(cb.lower(root.get("customer").get("firstName")), pattern),
+                    cb.like(cb.lower(root.get("customer").get("lastName")), pattern),
+                    cb.like(cb.lower(root.get("barber").get("user").get("firstName")), pattern),
+                    cb.like(cb.lower(root.get("barber").get("user").get("lastName")), pattern),
+                    cb.like(cb.lower(root.get("shop").get("name")), pattern)
+                );
+                predicate = cb.and(predicate, searchPredicate);
+            }
+            
+            // Fetch related entities
+            if (query.getResultType() != Long.class) {
+                root.fetch("customer", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("shop", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("barber", jakarta.persistence.criteria.JoinType.LEFT).fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("service", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+            
+            return predicate;
+        };
+
+        // We need a mapper to Response DTO. I'll reuse the one from BookingService if accessible or implement a simple one here.
+        // For now, I'll use a local lambda.
+        return appointmentRepository.findAll(spec, pageable).map(a -> com.trimlink.module.booking.dto.AppointmentResponse.builder()
+                .id(a.getId())
+                .customerId(a.getCustomer() != null ? a.getCustomer().getId() : null)
+                .customerName(a.getCustomer() != null ? a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName() : "Walk-in")
+                .barberId(a.getBarber().getId())
+                .barberName(a.getBarber().getUser().getFirstName() + " " + a.getBarber().getUser().getLastName())
+                .shopId(a.getShop().getId())
+                .shopName(a.getShop().getName())
+                .serviceId(a.getService() != null ? a.getService().getId() : null)
+                .serviceName(a.getService() != null ? a.getService().getName() : "Custom Service")
+                .scheduledStart(a.getScheduledStart())
+                .scheduledEnd(a.getScheduledEnd())
+                .status(a.getStatus())
+                .priceCharged(a.getPriceCharged())
+                .build());
+    }
+
     private List<QueueStatus> activeQueueStatuses() {
         return List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE);
     }

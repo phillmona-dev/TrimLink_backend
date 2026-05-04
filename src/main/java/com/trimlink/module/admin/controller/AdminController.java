@@ -49,6 +49,26 @@ public class AdminController {
                 ApiResponse.ok(PageResponse.from(adminService.listBarberPerformance(pageable))));
     }
 
+    @Operation(summary = "List all platform appointments (filtered)")
+    @GetMapping("/appointments")
+    public ResponseEntity<ApiResponse<PageResponse<com.trimlink.module.booking.dto.AppointmentResponse>>> listAppointments(
+            @RequestParam(required = false) UUID shopId,
+            @RequestParam(required = false) UUID barberId,
+            @RequestParam(required = false) com.trimlink.module.booking.entity.AppointmentStatus status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @RequestParam(required = false) String query,
+            @PageableDefault(size = 20, sort = "scheduledStart", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(
+                ApiResponse.ok(PageResponse.from(adminService.listAllAppointments(shopId, barberId, status, startDate, endDate, query, pageable))));
+    }
+
+    @Operation(summary = "Get platform-wide appointment financial stats")
+    @GetMapping("/appointments/stats")
+    public ResponseEntity<ApiResponse<com.trimlink.module.admin.dto.AdminAppointmentStats>> getAppointmentStats() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getAppointmentStats()));
+    }
+
     @Operation(summary = "Get all pending shops awaiting approval")
     @GetMapping("/users/pending")
     public ResponseEntity<ApiResponse<List<UserResponse>>> getPendingShops() {
