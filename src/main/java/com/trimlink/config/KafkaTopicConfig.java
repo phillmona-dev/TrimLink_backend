@@ -2,6 +2,7 @@ package com.trimlink.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
@@ -11,6 +12,7 @@ import org.springframework.kafka.config.TopicBuilder;
  * Each topic has 3 partitions + replication factor 1 (scale up in prod).
  */
 @Configuration
+@ConditionalOnProperty(name = "trimlink.kafka.enabled", havingValue = "true")
 public class KafkaTopicConfig {
 
     @Value("${trimlink.kafka.topics.booking-created}") private String bookingCreated;

@@ -12,6 +12,7 @@ import com.trimlink.module.notification.service.WebSocketNotificationService;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -30,6 +31,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "trimlink.kafka.enabled", havingValue = "true")
 public class NotificationConsumer {
 
     private final SmsService smsService;

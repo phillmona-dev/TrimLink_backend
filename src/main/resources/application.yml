@@ -137,6 +137,7 @@ trimlink:
 
   # ==================== KAFKA TOPICS ====================
   kafka:
+    enabled: ${KAFKA_ENABLED:false}
     topics:
       booking-created: trimlink.booking.created
       booking-confirmed: trimlink.booking.confirmed
