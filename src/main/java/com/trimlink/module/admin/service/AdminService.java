@@ -36,11 +36,6 @@ public class AdminService {
     private final AppointmentRepository     appointmentRepository;
     private final QueueEntryRepository      queueEntryRepository;
 
-    /**
-     * Dashboard aggregation — cached for 5 minutes to avoid heavyweight
-     * queries on every admin page load during peak hours.
-     */
-    @Cacheable(value = "admin:dashboard", key = "#root.method.name")
     @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();

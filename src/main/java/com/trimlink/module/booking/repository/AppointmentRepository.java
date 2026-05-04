@@ -110,9 +110,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
      */
     @Query("""
             SELECT SUM(a.priceCharged) FROM Appointment a
-            WHERE a.shop.id = :shopId
+            WHERE (:shopId IS NULL OR a.shop.id = :shopId)
               AND a.status = 'COMPLETED'
               AND a.scheduledStart BETWEEN :from AND :to
+              AND a.deleted = false
             """)
     java.math.BigDecimal sumRevenueByShop(
             @Param("shopId") UUID shopId,
