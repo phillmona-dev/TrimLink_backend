@@ -230,13 +230,13 @@ class BookingServiceTest {
 
         // Slot at 10:00 should be unavailable
         var tenAmSlot = slots.stream()
-                .filter(s -> s.getStart().toLocalTime().equals(LocalTime.of(10, 0)))
+                .filter(s -> s.getStartTime().toLocalTime().equals(LocalTime.of(10, 0)))
                 .findFirst().orElseThrow();
         assertThat(tenAmSlot.isAvailable()).isFalse();
 
         // Slot at 09:00 should still be available
         var nineAmSlot = slots.stream()
-                .filter(s -> s.getStart().toLocalTime().equals(LocalTime.of(9, 0)))
+                .filter(s -> s.getStartTime().toLocalTime().equals(LocalTime.of(9, 0)))
                 .findFirst().orElseThrow();
         assertThat(nineAmSlot.isAvailable()).isTrue();
     }
