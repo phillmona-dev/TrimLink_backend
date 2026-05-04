@@ -43,7 +43,15 @@ public class UploadController {
 
         // Create upload directory if it doesn't exist
         Path uploadPath = Paths.get(uploadDir, "receipts");
-        Files.createDirectories(uploadPath);
+        try {
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+                log.info("Created upload directory: {}", uploadPath.toAbsolutePath());
+            }
+        } catch (IOException e) {
+            log.error("CRITICAL: Could not create upload directory at {}. Error: {}", uploadPath.toAbsolutePath(), e.getMessage());
+            throw e;
+        }
 
         // Generate unique filename
         String originalFilename = file.getOriginalFilename();
@@ -54,9 +62,13 @@ public class UploadController {
 
         // Save file to disk
         Path filePath = uploadPath.resolve(filename);
-        Files.copy(file.getInputStream(), filePath);
-
-        log.info("Receipt uploaded: {}", filePath.toAbsolutePath());
+        try {
+            Files.copy(file.getInputStream(), filePath);
+            log.info("Receipt uploaded successfully to: {}", filePath.toAbsolutePath());
+        } catch (IOException e) {
+            log.error("CRITICAL: Failed to save uploaded file to {}. Error: {}", filePath.toAbsolutePath(), e.getMessage());
+            throw e;
+        }
 
         // Return URL to access the file
         String fileUrl = baseUrl + "/uploads/receipts/" + filename;
@@ -67,6 +79,7 @@ public class UploadController {
     public ResponseEntity<byte[]> getReceipt(@PathVariable String filename) throws IOException {
         Path filePath = Paths.get(uploadDir, "receipts", filename);
         if (!Files.exists(filePath)) {
+            log.warn("Receipt not found: {}", filePath.toAbsolutePath());
             return ResponseEntity.notFound().build();
         }
         byte[] bytes = Files.readAllBytes(filePath);

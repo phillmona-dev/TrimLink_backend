@@ -6,7 +6,9 @@ RUN MAVEN_OPTS="-Xmx384m -XX:MaxRAMPercentage=75.0" mvn clean package -DskipTest
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S trimlink && adduser -S trimlink -G trimlink
+RUN addgroup -S trimlink && adduser -S trimlink -G trimlink \
+    && mkdir -p uploads/receipts \
+    && chown -R trimlink:trimlink /app
 COPY --from=builder /app/target/trimlink-backend-*.jar app.jar
 USER trimlink
 EXPOSE 8080
