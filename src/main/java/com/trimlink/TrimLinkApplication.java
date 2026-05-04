@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Bean;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
-
 @SpringBootApplication
 @EnableCaching
 @EnableAsync
@@ -23,28 +22,5 @@ public class TrimLinkApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(TrimLinkApplication.class, args);
-    }
-
-    @Bean
-    public CommandLineRunner initWorkingHours(
-            BarberShopRepository shopRepository,
-            WorkingHoursRepository workingHoursRepository) {
-        return args -> {
-            shopRepository.findAll().forEach(shop -> {
-                for (DayOfWeek day : DayOfWeek.values()) {
-                    boolean exists = workingHoursRepository
-                            .findByShopIdAndDayOfWeek(shop.getId(), day).isPresent();
-                    if (!exists) {
-                        workingHoursRepository.save(WorkingHours.builder()
-                                .shop(shop)
-                                .dayOfWeek(day)
-                                .openTime(LocalTime.of(8, 0))
-                                .closeTime(LocalTime.of(20, 0))
-                                .closed(false)
-                                .build());
-                    }
-                }
-            });
-        };
     }
 }

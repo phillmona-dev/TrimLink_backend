@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trimlink.module.auth.dto.SendOtpRequest;
 import com.trimlink.module.auth.dto.VerifyOtpRequest;
 import com.trimlink.module.user.entity.Role;
+import com.trimlink.test.DisabledIfDockerNotAvailable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Testcontainers
 @ActiveProfiles("test")
+@DisabledIfDockerNotAvailable
 @DisplayName("Auth Integration Tests")
 class AuthIntegrationTest {
 
