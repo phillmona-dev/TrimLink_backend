@@ -7,6 +7,7 @@ import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.queue.entity.QueueStatus;
 import com.trimlink.module.queue.repository.QueueEntryRepository;
+import com.trimlink.module.payment.repository.PaymentRepository;
 import com.trimlink.module.shop.repository.BarberShopRepository;
 import com.trimlink.module.user.dto.UserResponse;
 import com.trimlink.module.user.entity.BarberProfile;
@@ -38,6 +39,7 @@ public class AdminService {
     private final AppointmentRepository     appointmentRepository;
     private final QueueEntryRepository      queueEntryRepository;
     private final PlatformSettingRepository platformSettingRepository;
+    private final PaymentRepository         paymentRepository;
 
     @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
@@ -288,6 +290,62 @@ public class AdminService {
                 .status(a.getStatus())
                 .priceCharged(a.getPriceCharged())
                 .build());
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.trimlink.module.admin.dto.ShopFinanceSummary> getShopFinanceSummaries() {
+        // Fetch share percent once
+        String shareStr = platformSettingRepository.findByKey("admin_share_percentage")
+                .map(com.trimlink.module.admin.entity.PlatformSetting::getValue)
+                .orElse("10.0");
+        BigDecimal sharePercent = new BigDecimal(shareStr).divide(new BigDecimal("100"));
+
+        return barberShopRepository.findAll().stream().map(shop -> {
+            BigDecimal revenue = safeDecimal(appointmentRepository.sumRevenueByShop(shop.getId(), LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.of(2100, 1, 1, 0, 0)));
+            long txCount = appointmentRepository.countByShopIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                    shop.getId(), com.trimlink.module.booking.entity.AppointmentStatus.COMPLETED, 
+                    LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.of(2100, 1, 1, 0, 0));
+            
+            return com.trimlink.module.admin.dto.ShopFinanceSummary.builder()
+                    .shopId(shop.getId())
+                    .shopName(shop.getName())
+                    .ownerName(shop.getOwner() != null ? shop.getOwner().getFirstName() + " " + shop.getOwner().getLastName() : "N/A")
+                    .totalRevenue(revenue)
+                    .adminShare(revenue.multiply(sharePercent))
+                    .totalTransactions(txCount)
+                    .build();
+        }).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<com.trimlink.module.admin.dto.TransactionResponse> listTransactions(Pageable pageable) {
+        // Here we can join Payment with Appointment to get Shop info if needed
+        // For simplicity, I'll return payments and join where possible
+        return paymentRepository.findAll(pageable).map(p -> {
+            String shopName = "N/A";
+            String customerName = p.getUser() != null ? p.getUser().getFirstName() + " " + p.getUser().getLastName() : "N/A";
+            
+            // Try to find appointment if it's an appointment payment
+            if (p.getReferenceType() == com.trimlink.module.payment.entity.PaymentReferenceType.APPOINTMENT) {
+                var appt = appointmentRepository.findById(p.getReferenceId()).orElse(null);
+                if (appt != null) {
+                    shopName = appt.getShop().getName();
+                }
+            }
+
+            return com.trimlink.module.admin.dto.TransactionResponse.builder()
+                    .id(p.getId())
+                    .shopName(shopName)
+                    .customerName(customerName)
+                    .amount(p.getAmount())
+                    .currency(p.getCurrency())
+                    .status(p.getStatus())
+                    .provider(p.getProvider())
+                    .txRef(p.getTxRef())
+                    .createdAt(p.getCreatedAt())
+                    .paidAt(p.getPaidAt())
+                    .build();
+        });
     }
 
     @Transactional

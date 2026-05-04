@@ -89,6 +89,19 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok("User rejected successfully", null));
     }
 
+    @Operation(summary = "Get shop-wise financial summaries")
+    @GetMapping("/finance/shops")
+    public ResponseEntity<ApiResponse<List<com.trimlink.module.admin.dto.ShopFinanceSummary>>> getShopFinanceSummaries() {
+        return ResponseEntity.ok(ApiResponse.ok(adminService.getShopFinanceSummaries()));
+    }
+
+    @Operation(summary = "List all financial transactions")
+    @GetMapping("/finance/transactions")
+    public ResponseEntity<ApiResponse<PageResponse<com.trimlink.module.admin.dto.TransactionResponse>>> listTransactions(
+            @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(adminService.listTransactions(pageable))));
+    }
+
     @Operation(summary = "Update a platform setting")
     @PatchMapping("/settings/{key}")
     public ResponseEntity<ApiResponse<Void>> updateSetting(
