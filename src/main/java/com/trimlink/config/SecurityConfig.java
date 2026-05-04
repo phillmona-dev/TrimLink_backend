@@ -51,7 +51,8 @@ public class SecurityConfig {
             "/actuator/health",
             "/ws/**",
             "/support/send",
-            "/support/history"
+            "/support/history",
+            "/uploads/receipts/**"
     };
 
     @Bean
@@ -68,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/shops/my-shop/**").hasAnyRole("OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/shops", "/shops/{id}", "/shops/{id}/barbers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/barbers", "/barbers/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/services/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/barber/**").hasAnyRole("BARBER", "OWNER", "ADMIN")

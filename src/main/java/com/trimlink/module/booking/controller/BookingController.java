@@ -82,12 +82,23 @@ public class BookingController {
     @PreAuthorize("hasAnyRole('BARBER', 'OWNER')")
     public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getBarberAppointments(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestParam(required = false, defaultValue = "PENDING") com.trimlink.module.booking.entity.AppointmentStatus status,
+            @RequestParam(required = false) com.trimlink.module.booking.entity.AppointmentStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
             @PageableDefault(size = 20, sort = "scheduledStart") Pageable pageable) {
-
+ 
         PageResponse<AppointmentResponse> page = PageResponse.from(
-                bookingService.getBarberAppointments(principal.getUserId(), status, pageable));
+                bookingService.getBarberAppointments(principal.getUserId(), status, search, date, pageable));
         return ResponseEntity.ok(ApiResponse.ok(page));
+    }
+
+    @Operation(summary = "Update appointment payment status (barber/owner)")
+    @PatchMapping("/{id}/payment-status")
+    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> updatePaymentStatus(
+            @PathVariable UUID id,
+            @RequestParam com.trimlink.module.payment.entity.PaymentStatus status) {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.updatePaymentStatus(id, status)));
     }
 
     // PATCH /bookings/{id}/confirm

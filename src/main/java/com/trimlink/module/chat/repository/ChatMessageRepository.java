@@ -23,4 +23,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     List<UUID> findConnectedUserIds(@Param("userId") UUID userId);
 
     long countByReceiverIdAndReadFalse(UUID receiverId);
+
+    long countBySenderIdAndReceiverIdAndReadFalse(UUID senderId, UUID receiverId);
 }

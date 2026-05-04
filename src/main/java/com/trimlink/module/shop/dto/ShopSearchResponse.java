@@ -21,6 +21,8 @@ public class ShopSearchResponse {
     private boolean active;
     private String ownerName;
     private String ownerPhone;
+    private long activeQueueCount;
+    private long averageWaitMinutes;
     private java.util.List<BankAccountDTO> bankAccounts;
 
     @Data
@@ -46,6 +48,8 @@ public class ShopSearchResponse {
                 .active(shop.isActive())
                 .ownerName(ownerName)
                 .ownerPhone(ownerPhone)
+                .activeQueueCount(0) // Default, updated in service
+                .averageWaitMinutes(0)
                 .bankAccounts(shop.getBankAccounts() != null ? shop.getBankAccounts().stream()
                         .filter(acc -> acc.isActive() && !acc.isDeleted())
                         .map(acc -> BankAccountDTO.builder()

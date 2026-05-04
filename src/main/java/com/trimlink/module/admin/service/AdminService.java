@@ -124,7 +124,7 @@ public class AdminService {
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LocalDateTime now = LocalDateTime.now();
 
-        return barberProfileRepository.findAllActiveWithUser(pageable)
+        return barberProfileRepository.searchActiveWithUser(null, pageable)
                 .map(barber -> toBarberPerformance(barber, todayStart, monthStart, now));
     }
 

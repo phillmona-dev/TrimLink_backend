@@ -66,6 +66,11 @@ public class Appointment extends BaseEntity {
     @Builder.Default
     private AppointmentStatus status = AppointmentStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false, length = 30)
+    @Builder.Default
+    private com.trimlink.module.payment.entity.PaymentStatus paymentStatus = com.trimlink.module.payment.entity.PaymentStatus.UNPAID;
+
     /**
      * Price charged at time of booking (snapshot; service price may change later).
      */
@@ -80,6 +85,9 @@ public class Appointment extends BaseEntity {
 
     @Column(name = "receipt_image_url", length = 500)
     private String receiptImageUrl;
+
+    @Column(name = "ticket_number", length = 20)
+    private String ticketNumber;
 
     // ─── FSM transitions ───────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
-public interface BarberShopRepository extends JpaRepository<BarberShop, UUID> {
+public interface BarberShopRepository extends JpaRepository<BarberShop, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<BarberShop> {
     Page<BarberShop> findByCityAndActiveTrue(String city, Pageable pageable);
     Page<BarberShop> findByActiveTrue(Pageable pageable);
     long countByDeletedFalse();

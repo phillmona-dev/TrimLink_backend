@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import jakarta.persistence.LockModeType;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
+public interface AppointmentRepository extends JpaRepository<Appointment, UUID>, JpaSpecificationExecutor<Appointment> {
 
     /**
      * Overlap detection: finds any active appointment for a barber that
@@ -36,6 +37,9 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.shop.id = :shopId AND a.scheduledStart >= :start AND a.scheduledStart < :end AND a.ticketNumber IS NOT NULL")
+    long countWithTicketNumber(@Param("shopId") UUID shopId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     /**
      * Customer's appointment history with JOIN FETCH to avoid N+1.
@@ -116,13 +120,33 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
             @Param("to") LocalDateTime to
     );
 
-    @Query("""
+    @Query(value = """
             SELECT a FROM Appointment a
+            JOIN FETCH a.service s
+            JOIN FETCH a.customer c
             WHERE a.barber.user.id = :userId
-              AND a.status = :status
+              AND (a.status = :status OR :status IS NULL)
               AND a.deleted = false
+              AND (:search IS NULL OR :search = '' OR LOWER(c.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(c.lastName) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (:dayStart IS NULL OR a.scheduledStart >= :dayStart)
+              AND (:dayEnd IS NULL OR a.scheduledStart < :dayEnd)
+            """,
+            countQuery = """
+            SELECT COUNT(a) FROM Appointment a
+            WHERE a.barber.user.id = :userId
+              AND (a.status = :status OR :status IS NULL)
+              AND a.deleted = false
+              AND (:search IS NULL OR :search = '' OR LOWER(a.customer.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(a.customer.lastName) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (:dayStart IS NULL OR a.scheduledStart >= :dayStart)
+              AND (:dayEnd IS NULL OR a.scheduledStart < :dayEnd)
             """)
-    Page<Appointment> findByBarberUserIdAndStatus(@Param("userId") UUID userId, @Param("status") AppointmentStatus status, Pageable pageable);
+    Page<Appointment> searchBarberAppointments(
+            @Param("userId") UUID userId,
+            @Param("status") AppointmentStatus status,
+            @Param("search") String search,
+            @Param("dayStart") LocalDateTime dayStart,
+            @Param("dayEnd") LocalDateTime dayEnd,
+            Pageable pageable);
 
     Page<Appointment> findByBarberIdAndStatusAndDeletedFalse(
             UUID barberId, AppointmentStatus status, Pageable pageable);

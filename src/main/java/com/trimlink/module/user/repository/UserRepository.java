@@ -21,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"barberProfile", "barberProfile.shop"})
     java.util.List<User> findByApprovalStatusAndDeletedFalse(com.trimlink.module.user.entity.ApprovalStatus status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE u.deleted = false AND (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%')))")
+    java.util.List<User> searchUsers(@org.springframework.data.repository.query.Param("q") String q);
 }

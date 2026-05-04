@@ -37,11 +37,14 @@ public interface BarberProfileRepository extends JpaRepository<BarberProfile, UU
                     JOIN FETCH b.user u
                     LEFT JOIN FETCH b.shop s
                     WHERE b.deleted = false
+                    AND (:q IS NULL OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%')))
                     """,
             countQuery = """
                     SELECT COUNT(b) FROM BarberProfile b
+                    JOIN b.user u
                     WHERE b.deleted = false
+                    AND (:q IS NULL OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :q, '%')))
                     """
     )
-    Page<BarberProfile> findAllActiveWithUser(Pageable pageable);
+    Page<BarberProfile> searchActiveWithUser(@Param("q") String q, Pageable pageable);
 }

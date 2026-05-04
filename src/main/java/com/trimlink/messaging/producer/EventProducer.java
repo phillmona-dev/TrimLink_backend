@@ -1,6 +1,7 @@
 package com.trimlink.messaging.producer;
 
 import com.trimlink.messaging.event.BookingCreatedEvent;
+import com.trimlink.messaging.event.BookingConfirmedEvent;
 import com.trimlink.messaging.event.OtpRequestedEvent;
 import com.trimlink.messaging.event.PaymentEvent;
 import com.trimlink.messaging.event.QueueUpdatedEvent;
@@ -26,6 +27,7 @@ public class EventProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Value("${trimlink.kafka.topics.booking-created}")   private String bookingCreated;
+    @Value("${trimlink.kafka.topics.booking-confirmed}") private String bookingConfirmed;
     @Value("${trimlink.kafka.topics.booking-cancelled}") private String bookingCancelled;
     @Value("${trimlink.kafka.topics.booking-completed}") private String bookingCompleted;
     @Value("${trimlink.kafka.topics.payment-success}")   private String paymentSuccess;
@@ -36,6 +38,11 @@ public class EventProducer {
     @org.springframework.scheduling.annotation.Async
     public void publishBookingCreated(BookingCreatedEvent event) {
         send(bookingCreated, event.getAppointmentId().toString(), event);
+    }
+
+    @org.springframework.scheduling.annotation.Async
+    public void publishBookingConfirmed(BookingConfirmedEvent event) {
+        send(bookingConfirmed, event.getAppointmentId().toString(), event);
     }
 
     @org.springframework.scheduling.annotation.Async

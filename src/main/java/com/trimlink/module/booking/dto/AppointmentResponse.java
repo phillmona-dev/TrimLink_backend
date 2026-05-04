@@ -36,10 +36,12 @@ public class AppointmentResponse {
     private LocalDateTime actualEnd;
 
     private AppointmentStatus status;
+    private com.trimlink.module.payment.entity.PaymentStatus paymentStatus;
     private BigDecimal priceCharged;
     private String notes;
     private String cancellationReason;
     private String receiptImageUrl;
+    private String ticketNumber;
 
     private LocalDateTime createdAt;
     private boolean reviewed;

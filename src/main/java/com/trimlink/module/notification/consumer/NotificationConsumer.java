@@ -1,6 +1,7 @@
 package com.trimlink.module.notification.consumer;
 
 import com.trimlink.messaging.event.BookingCreatedEvent;
+import com.trimlink.messaging.event.BookingConfirmedEvent;
 import com.trimlink.messaging.event.OtpRequestedEvent;
 import com.trimlink.messaging.event.PaymentEvent;
 import com.trimlink.messaging.event.QueueUpdatedEvent;
@@ -75,6 +76,48 @@ public class NotificationConsumer {
             ));
         } catch (Exception e) {
             log.error("Failed to send booking SMS/WebSocket for appointmentId={}: {}",
+                    event.getAppointmentId(), e.getMessage());
+        }
+    }
+
+    @KafkaListener(
+            topics = "${trimlink.kafka.topics.booking-confirmed}",
+            groupId = "trimlink-notification-group",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void onBookingConfirmed(@Payload BookingConfirmedEvent event) {
+        log.info("Notification: BookingConfirmed for appointmentId={}", event.getAppointmentId());
+        try {
+            String message = String.format(
+                    "TrimLink: Good news %s! Your booking at %s is APPROVED. Your virtual ticket is %s. " +
+                    "See you at %s.",
+                    event.getCustomerName(),
+                    event.getShopName(),
+                    event.getTicketNumber(),
+                    event.getScheduledStart()
+            );
+            
+            smsService.send(event.getCustomerPhone(), message);
+            
+            pushNotificationService.sendToUser(event.getCustomerId(), PushMessage.builder()
+                    .title("Booking Approved! " + event.getTicketNumber())
+                    .body(String.format("Your booking at %s is ready. Ticket: %s", event.getShopName(), event.getTicketNumber()))
+                    .data(Map.of(
+                            "type", "BOOKING_CONFIRMED",
+                            "appointmentId", event.getAppointmentId().toString(),
+                            "ticketNumber", event.getTicketNumber()
+                    ))
+                    .build());
+
+            // Notify Customer via WebSocket
+            webSocketNotificationService.notifyCustomer(event.getCustomerId(), Map.of(
+                    "type", "BOOKING_CONFIRMED",
+                    "appointmentId", event.getAppointmentId().toString(),
+                    "ticketNumber", event.getTicketNumber(),
+                    "message", message
+            ));
+        } catch (Exception e) {
+            log.error("Failed to send confirmation notification for appointmentId={}: {}",
                     event.getAppointmentId(), e.getMessage());
         }
     }

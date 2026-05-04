@@ -25,7 +25,7 @@ public class ShopBankAccount extends BaseEntity {
     @Column(name = "account_number", nullable = false, length = 50)
     private String accountNumber;
 
-    @Column(name = "account_holder", length = 200)
+    @Column(name = "account_holder", length = 200, nullable = false)
     private String accountHolder;
 
     @Column(name = "active", nullable = false)

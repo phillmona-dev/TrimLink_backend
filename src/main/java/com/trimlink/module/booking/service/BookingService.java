@@ -4,6 +4,7 @@ import com.trimlink.common.exception.BusinessException;
 import com.trimlink.common.exception.ConflictException;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.messaging.event.BookingCreatedEvent;
+import com.trimlink.messaging.event.BookingConfirmedEvent;
 import com.trimlink.messaging.producer.EventProducer;
 import com.trimlink.module.booking.dto.AppointmentResponse;
 import com.trimlink.module.booking.dto.CreateAppointmentRequest;
@@ -19,6 +20,7 @@ import com.trimlink.module.service.repository.ServiceRepository;
 import com.trimlink.module.shop.entity.BarberShop;
 import com.trimlink.module.shop.entity.WorkingHours;
 import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.repository.DailyWorkLogRepository;
 import com.trimlink.module.shop.repository.WorkingHoursRepository;
 import com.trimlink.module.user.entity.BarberProfile;
 import com.trimlink.module.user.entity.User;
@@ -49,9 +51,10 @@ public class BookingService {
     private final BarberShopRepository barberShopRepository;
     private final ServiceRepository serviceRepository;
     private final WorkingHoursRepository workingHoursRepository;
+    private final DailyWorkLogRepository dailyWorkLogRepository;
+    private final WebSocketNotificationService webSocketNotificationService;
     private final EventProducer eventProducer;
     private final ReviewRepository reviewRepository;
-    private final WebSocketNotificationService webSocketNotificationService;
 
     // ─── Create Booking ────────────────────────────────────────────────────
 
@@ -177,9 +180,21 @@ public class BookingService {
     public AppointmentResponse confirmAppointment(UUID appointmentId) {
         Appointment appt = findAppointment(appointmentId);
         appt.confirm();
+        
+        // Generate virtual ticket number
+        if (appt.getTicketNumber() == null) {
+            LocalDateTime startOfDay = appt.getScheduledStart().toLocalDate().atStartOfDay();
+            LocalDateTime endOfDay = startOfDay.plusDays(1);
+            long count = appointmentRepository.countWithTicketNumber(appt.getShop().getId(), startOfDay, endOfDay);
+            String ticketNumber = String.format("#T-%03d", count + 1);
+            appt.setTicketNumber(ticketNumber);
+        }
+
         Appointment savedAppt = appointmentRepository.save(appt);
-        // Notify the customer about confirmation
-        webSocketNotificationService.notifyCustomer(savedAppt.getCustomer().getId(), toResponse(savedAppt));
+        
+        // Publish event for notifications (SMS, Push, WebSocket)
+        eventProducer.publishBookingConfirmed(BookingConfirmedEvent.from(savedAppt));
+        
         return toResponse(savedAppt);
     }
 
@@ -238,6 +253,16 @@ public class BookingService {
         return toResponse(appointmentRepository.save(appointment));
     }
 
+    @Transactional
+    public AppointmentResponse updatePaymentStatus(UUID appointmentId, com.trimlink.module.payment.entity.PaymentStatus status) {
+        Appointment appt = findAppointment(appointmentId);
+        appt.setPaymentStatus(status);
+        Appointment saved = appointmentRepository.save(appt);
+        // Notify customer about payment status update
+        webSocketNotificationService.notifyCustomer(saved.getCustomer().getId(), toResponse(saved));
+        return toResponse(saved);
+    }
+
     // ─── Queries ───────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -250,9 +275,43 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AppointmentResponse> getBarberAppointments(UUID barberUserId, AppointmentStatus status, Pageable pageable) {
-        return appointmentRepository.findByBarberUserIdAndStatus(barberUserId, status, pageable)
-                .map(this::toResponse);
+    public Page<AppointmentResponse> getBarberAppointments(UUID barberUserId, AppointmentStatus status, String search, java.time.LocalDate date, Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Appointment> spec = (root, query, cb) -> {
+            if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                root.fetch("service", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("customer", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("shop", jakarta.persistence.criteria.JoinType.LEFT);
+                root.fetch("barber", jakarta.persistence.criteria.JoinType.LEFT).fetch("user", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            jakarta.persistence.criteria.Predicate predicate = cb.conjunction();
+            
+            predicate = cb.and(predicate, cb.isFalse(root.get("deleted")));
+            predicate = cb.and(predicate, cb.equal(root.join("barber").join("user").get("id"), barberUserId));
+            
+            if (status != null) {
+                predicate = cb.and(predicate, cb.equal(root.get("status"), status));
+            }
+            
+            if (date != null) {
+                predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("scheduledStart"), date.atStartOfDay()));
+                predicate = cb.and(predicate, cb.lessThan(root.get("scheduledStart"), date.plusDays(1).atStartOfDay()));
+            }
+            
+            if (search != null && !search.trim().isEmpty()) {
+                String pattern = "%" + search.trim().toLowerCase() + "%";
+                jakarta.persistence.criteria.Join<Object, Object> customer = root.join("customer");
+                jakarta.persistence.criteria.Predicate searchPredicate = cb.or(
+                    cb.like(cb.lower(customer.get("firstName")), pattern),
+                    cb.like(cb.lower(customer.get("lastName")), pattern)
+                );
+                predicate = cb.and(predicate, searchPredicate);
+            }
+            
+            return predicate;
+        };
+        
+        return appointmentRepository.findAll(spec, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -302,7 +361,9 @@ public class BookingService {
                 .actualStart(a.getActualStart())
                 .actualEnd(a.getActualEnd())
                 .status(a.getStatus())
+                .paymentStatus(a.getPaymentStatus())
                 .priceCharged(a.getPriceCharged())
+                .ticketNumber(a.getTicketNumber())
                 .notes(a.getNotes())
                 .cancellationReason(a.getCancellationReason())
                 .receiptImageUrl(a.getReceiptImageUrl())

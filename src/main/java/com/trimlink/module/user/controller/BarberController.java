@@ -35,4 +35,21 @@ public class BarberController {
         
         return ResponseEntity.ok(ApiResponse.ok(BarberResponse.from(barber, isBusy ? "BUSY" : "IDLE")));
     }
+
+    @Operation(summary = "Search barbers")
+    @GetMapping
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<BarberResponse>>> searchBarbers(
+            @RequestParam(required = false) String q,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        
+        org.springframework.data.domain.Page<BarberProfile> barbers = barberProfileRepository.searchActiveWithUser(q, pageable);
+        org.springframework.data.domain.Page<BarberResponse> responses = barbers.map(barber -> {
+            boolean isBusy = appointmentRepository.existsByBarberIdAndStatusAndDeletedFalse(
+                    barber.getId(), com.trimlink.module.booking.entity.AppointmentStatus.IN_PROGRESS);
+            return BarberResponse.from(barber, isBusy ? "BUSY" : "IDLE");
+        });
+        
+        return ResponseEntity.ok(ApiResponse.ok(responses));
+    }
 }

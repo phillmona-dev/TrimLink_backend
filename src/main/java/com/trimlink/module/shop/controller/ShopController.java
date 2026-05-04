@@ -48,6 +48,7 @@ public class ShopController {
     private final ShopService shopService;
     private final com.trimlink.module.shop.repository.WorkingHoursRepository workingHoursRepository;
     private final com.trimlink.module.booking.repository.AppointmentRepository appointmentRepository;
+    private final com.trimlink.module.shop.repository.ShopBankAccountRepository bankAccountRepository;
 
     // GET /shops?q=...  — full-text search across name/city/address
     // GET /shops?city=... — city filter (legacy)
@@ -76,10 +77,8 @@ public class ShopController {
     // GET /shops/{id}
     @Operation(summary = "Get shop details by ID")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BarberShop>> getById(@PathVariable UUID id) {
-        BarberShop shop = shopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", id));
-        return ResponseEntity.ok(ApiResponse.ok(shop));
+    public ResponseEntity<ApiResponse<ShopSearchResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(shopService.getShopById(id)));
     }
 
     @GetMapping("/{id}/barbers")
@@ -162,20 +161,37 @@ public class ShopController {
         shop.setLongitude(req.getLongitude());
         shop.setDescription(req.getDescription());
         
-        // Sync bank accounts
-        shop.getBankAccounts().clear();
-        if (req.getBankAccounts() != null) {
-            shop.getBankAccounts().addAll(req.getBankAccounts().stream()
-                    .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
-                            .shop(shop)
-                            .bankName(acc.getBankName())
-                            .accountNumber(acc.getAccountNumber())
-                            .accountHolder(acc.getAccountHolder())
-                            .build())
-                    .toList());
+        // Save basic shop fields first (without touching bankAccounts)
+        UUID shopId = shop.getId();
+        shopRepository.saveAndFlush(shop);
+
+        // Delete all existing bank accounts.
+        // clearAutomatically=true evicts them from the persistence context,
+        // preventing cascade from re-inserting stale data.
+        bankAccountRepository.deleteByShopId(shopId);
+
+        if (req.getBankAccounts() != null && !req.getBankAccounts().isEmpty()) {
+            // After clearAutomatically, 'shop' is detached. Use getReferenceById to
+            // get a fresh managed proxy for the FK reference.
+            BarberShop shopRef = shopRepository.getReferenceById(shopId);
+            List<com.trimlink.module.shop.entity.ShopBankAccount> newAccounts = req.getBankAccounts().stream()
+                .filter(acc -> acc.getBankName() != null && !acc.getBankName().isBlank()
+                            && acc.getAccountNumber() != null && !acc.getAccountNumber().isBlank()
+                            && acc.getAccountHolder() != null && !acc.getAccountHolder().isBlank())
+                .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
+                    .shop(shopRef)
+                    .bankName(acc.getBankName())
+                    .accountNumber(acc.getAccountNumber())
+                    .accountHolder(acc.getAccountHolder())
+                    .build())
+                .collect(java.util.stream.Collectors.toList());
+            bankAccountRepository.saveAll(newAccounts);
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(shopRepository.save(shop)));
+        // Reload a fresh snapshot from DB for the response
+        BarberShop savedShop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", shopId));
+        return ResponseEntity.ok(ApiResponse.ok(savedShop));
     }
 
     // DELETE /shops/{id}
@@ -284,23 +300,37 @@ public class ShopController {
         shop.setLongitude(req.getLongitude());
         shop.setDescription(req.getDescription());
         
-        // Sync bank accounts
-        shop.getBankAccounts().clear();
-        if (req.getBankAccounts() != null) {
-            shop.getBankAccounts().addAll(req.getBankAccounts().stream()
-                    .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
-                            .shop(shop)
-                            .bankName(acc.getBankName())
-                            .accountNumber(acc.getAccountNumber())
-                            .accountHolder(acc.getAccountHolder())
-                            .build())
-                    .toList());
+        // Save basic shop fields first (without touching bankAccounts)
+        UUID shopId = shop.getId();
+        shopRepository.saveAndFlush(shop);
+
+        // Delete all existing bank accounts.
+        // clearAutomatically=true evicts them from the persistence context,
+        // preventing cascade from re-inserting stale data.
+        bankAccountRepository.deleteByShopId(shopId);
+
+        if (req.getBankAccounts() != null && !req.getBankAccounts().isEmpty()) {
+            // After clearAutomatically, 'shop' is detached. Use getReferenceById to
+            // get a fresh managed proxy for the FK reference.
+            BarberShop shopRef = shopRepository.getReferenceById(shopId);
+            List<com.trimlink.module.shop.entity.ShopBankAccount> newAccounts = req.getBankAccounts().stream()
+                .filter(acc -> acc.getBankName() != null && !acc.getBankName().isBlank()
+                            && acc.getAccountNumber() != null && !acc.getAccountNumber().isBlank())
+                .map(acc -> com.trimlink.module.shop.entity.ShopBankAccount.builder()
+                    .shop(shopRef)
+                    .bankName(acc.getBankName())
+                    .accountNumber(acc.getAccountNumber())
+                    .accountHolder(acc.getAccountHolder())
+                    .build())
+                .collect(java.util.stream.Collectors.toList());
+            bankAccountRepository.saveAll(newAccounts);
         }
-        
-        BarberShop savedShop = shopRepository.save(shop);
+
+        // Reload a fresh snapshot from DB for the response
+        BarberShop savedShop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("BarberShop", "id", shopId));
         String ownerName = owner.getFirstName() + " " + owner.getLastName();
         String ownerPhone = owner.getPhoneNumber();
-        
         return ResponseEntity.ok(ApiResponse.ok(ShopSearchResponse.from(savedShop, ownerName, ownerPhone)));
     }
 

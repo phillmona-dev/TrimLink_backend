@@ -2,6 +2,12 @@ spring:
   application:
     name: trimlink-backend
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/trimlink}
     username: ${DB_USERNAME:postgres}
@@ -133,6 +139,7 @@ trimlink:
   kafka:
     topics:
       booking-created: trimlink.booking.created
+      booking-confirmed: trimlink.booking.confirmed
       booking-cancelled: trimlink.booking.cancelled
       booking-completed: trimlink.booking.completed
       payment-success: trimlink.payment.success

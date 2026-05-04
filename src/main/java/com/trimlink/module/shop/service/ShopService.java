@@ -40,13 +40,47 @@ public class ShopService {
     private final QueueEntryRepository queueEntryRepository;
 
     @Transactional(readOnly = true)
-    public Page<ShopSearchResponse> searchShops(String q, String city, Pageable pageable) {
-        Page<BarberShop> shops = (q != null && !q.isBlank())
-                ? shopRepository.search(q.trim(), pageable)
-                : (city != null && !city.isBlank())
-                    ? shopRepository.findByCityAndActiveTrue(city, pageable)
-                    : shopRepository.findByActiveTrue(pageable);
+    public Page<ShopSearchResponse> searchShops(String q, String city, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<BarberShop> spec = (root, query, cb) -> {
+            jakarta.persistence.criteria.Predicate predicate = cb.conjunction();
+            
+            // Only active shops
+            predicate = cb.and(predicate, cb.isTrue(root.get("active")));
+            
+            if (q != null && !q.isBlank()) {
+                String searchPattern = "%" + q.trim().toLowerCase() + "%";
+                
+                // Join for owner search
+                jakarta.persistence.criteria.Join<BarberShop, com.trimlink.module.user.entity.BarberProfile> barbers = root.join("barbers", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Join<com.trimlink.module.user.entity.BarberProfile, com.trimlink.module.user.entity.User> user = barbers.join("user", jakarta.persistence.criteria.JoinType.LEFT);
+                
+                jakarta.persistence.criteria.Predicate searchPredicate = cb.or(
+                    cb.like(cb.lower(root.get("name")), searchPattern),
+                    cb.like(cb.lower(root.get("city")), searchPattern),
+                    cb.like(cb.lower(root.get("address")), searchPattern),
+                    cb.like(cb.lower(root.get("phone")), searchPattern),
+                    cb.and(
+                        cb.equal(user.get("role"), com.trimlink.module.user.entity.Role.OWNER),
+                        cb.or(
+                            cb.like(cb.lower(user.get("firstName")), searchPattern),
+                            cb.like(cb.lower(user.get("lastName")), searchPattern),
+                            cb.like(cb.lower(user.get("phoneNumber")), searchPattern)
+                        )
+                    )
+                );
+                predicate = cb.and(predicate, searchPredicate);
+                
+                if (Long.class != query.getResultType() && long.class != query.getResultType()) {
+                    query.distinct(true);
+                }
+            } else if (city != null && !city.isBlank()) {
+                predicate = cb.and(predicate, cb.equal(cb.lower(root.get("city")), city.trim().toLowerCase()));
+            }
+            
+            return predicate;
+        };
 
+        Page<BarberShop> shops = shopRepository.findAll(spec, pageable);
         return shops.map(this::mapToSearchResponse);
     }
 
@@ -54,6 +88,13 @@ public class ShopService {
     public Page<ShopSearchResponse> listAllShops(Pageable pageable) {
         Page<BarberShop> shops = shopRepository.findAll(pageable);
         return shops.map(this::mapToSearchResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public ShopSearchResponse getShopById(UUID id) {
+        BarberShop shop = shopRepository.findById(id)
+                .orElseThrow(() -> new com.trimlink.common.exception.ResourceNotFoundException("BarberShop", "id", id));
+        return mapToSearchResponse(shop);
     }
 
     private ShopSearchResponse mapToSearchResponse(BarberShop shop) {
@@ -71,7 +112,15 @@ public class ShopService {
             ownerPhone = owner.getUser().getPhoneNumber();
         }
         
-        return ShopSearchResponse.from(shop, ownerName, ownerPhone);
+        long activeQueueCount = queueEntryRepository.countByShopIdAndStatusInAndDeletedFalse(
+                shop.getId(), List.of(QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_SERVICE));
+        
+        long averageWaitMinutes = activeQueueCount * 15L;
+
+        ShopSearchResponse response = ShopSearchResponse.from(shop, ownerName, ownerPhone);
+        response.setActiveQueueCount(activeQueueCount);
+        response.setAverageWaitMinutes(averageWaitMinutes);
+        return response;
     }
 
     @Transactional(readOnly = true)

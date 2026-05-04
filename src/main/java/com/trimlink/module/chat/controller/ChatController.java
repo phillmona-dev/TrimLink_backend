@@ -76,10 +76,32 @@ public class ChatController {
         List<UUID> connectedIds = chatMessageRepository.findConnectedUserIds(currentUser.getUserId());
         
         List<UserSummary> summaries = userRepository.findAllById(connectedIds).stream()
-                .map(u -> new UserSummary(u.getId(), u.getFirstName() + " " + u.getLastName(), u.getUsername(), u.getRole().name()))
+                .map(u -> {
+                    long unreadCount = chatMessageRepository.countBySenderIdAndReceiverIdAndReadFalse(u.getId(), currentUser.getUserId());
+                    return new UserSummary(u.getId(), u.getFirstName() + " " + u.getLastName(), u.getUsername(), u.getRole().name(), unreadCount);
+                })
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(ApiResponse.ok(summaries));
+    }
+
+    @Operation(summary = "Search users to start a conversation")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<UserSummary>>> searchUsers(@RequestParam String q) {
+        List<User> users = userRepository.searchUsers(q);
+        List<UserSummary> summaries = users.stream()
+                .map(u -> new UserSummary(u.getId(), u.getFirstName() + " " + u.getLastName(), u.getUsername(), u.getRole().name(), 0L))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.ok(summaries));
+    }
+
+    @Operation(summary = "Get total unread message count for current user")
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
+        AuthenticatedUser currentUser = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        long count = chatMessageRepository.countByReceiverIdAndReadFalse(currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok(count));
     }
 
     @Data
@@ -95,5 +117,6 @@ public class ChatController {
         private final String fullName;
         private final String username;
         private final String role;
+        private final long unreadCount;
     }
 }
