@@ -16,6 +16,7 @@ public class AdminAppointmentStats {
     private BigDecimal totalRevenue;
     private BigDecimal revenueToday;
     private BigDecimal adminShare;
+    private double adminSharePercent;
     private List<ShopRevenue> shopRevenues;
     private List<BarberRevenue> barberRevenues;
 

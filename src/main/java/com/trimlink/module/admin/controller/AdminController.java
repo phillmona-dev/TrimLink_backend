@@ -88,4 +88,13 @@ public class AdminController {
         adminService.rejectUser(id);
         return ResponseEntity.ok(ApiResponse.ok("User rejected successfully", null));
     }
+
+    @Operation(summary = "Update a platform setting")
+    @PatchMapping("/settings/{key}")
+    public ResponseEntity<ApiResponse<Void>> updateSetting(
+            @PathVariable String key,
+            @RequestParam String value) {
+        adminService.updateSetting(key, value);
+        return ResponseEntity.ok(ApiResponse.ok("Setting updated successfully", null));
+    }
 }

@@ -1,5 +1,6 @@
 package com.trimlink.module.admin.service;
 
+import com.trimlink.module.admin.dto.AdminAppointmentStats;
 import com.trimlink.module.admin.dto.DashboardStats;
 import com.trimlink.module.admin.dto.BarberPerformanceResponse;
 import com.trimlink.module.booking.entity.AppointmentStatus;
@@ -9,6 +10,7 @@ import com.trimlink.module.queue.repository.QueueEntryRepository;
 import com.trimlink.module.shop.repository.BarberShopRepository;
 import com.trimlink.module.user.dto.UserResponse;
 import com.trimlink.module.user.entity.BarberProfile;
+import com.trimlink.module.admin.repository.PlatformSettingRepository;
 import com.trimlink.module.user.repository.BarberProfileRepository;
 import com.trimlink.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class AdminService {
     private final BarberShopRepository      barberShopRepository;
     private final AppointmentRepository     appointmentRepository;
     private final QueueEntryRepository      queueEntryRepository;
+    private final PlatformSettingRepository platformSettingRepository;
 
     @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
@@ -164,18 +167,27 @@ public class AdminService {
     @Transactional(readOnly = true)
     public AdminAppointmentStats getAppointmentStats() {
         long approved = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.COMPLETED)
-                + appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.CONFIRMED);
+                + appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.CONFIRMED)
+                + appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.IN_PROGRESS);
         long pending  = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.PENDING);
         long rejected = appointmentRepository.countByStatusAndDeletedFalse(AppointmentStatus.REJECTED);
         
-        BigDecimal totalRevenue = safeDecimal(appointmentRepository.sumRevenueByShop(null, LocalDateTime.MIN, LocalDateTime.MAX));
+        // Use a more stable date range than MIN/MAX
+        LocalDateTime farPast = LocalDateTime.of(2000, 1, 1, 0, 0);
+        LocalDateTime farFuture = LocalDateTime.of(2100, 1, 1, 0, 0);
+        
+        BigDecimal totalRevenue = safeDecimal(appointmentRepository.sumRevenueByShop(null, farPast, farFuture));
         
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
         BigDecimal revenueToday = safeDecimal(appointmentRepository.sumRevenueByShop(null, todayStart, todayEnd));
         
-        // Admin share (10% of total revenue)
-        BigDecimal adminShare = totalRevenue.multiply(new BigDecimal("0.10"));
+        // Fetch dynamic admin share percentage (default to 10%)
+        String shareStr = platformSettingRepository.findByKey("admin_share_percentage")
+                .map(com.trimlink.module.admin.entity.PlatformSetting::getValue)
+                .orElse("10.0");
+        BigDecimal sharePercent = new BigDecimal(shareStr).divide(new BigDecimal("100"));
+        BigDecimal adminShare = totalRevenue.multiply(sharePercent);
 
         List<AdminAppointmentStats.ShopRevenue> shopRevenues = appointmentRepository.sumRevenueGroupByShop().stream()
                 .map(row -> AdminAppointmentStats.ShopRevenue.builder()
@@ -200,6 +212,7 @@ public class AdminService {
                 .totalRevenue(totalRevenue)
                 .revenueToday(revenueToday)
                 .adminShare(adminShare)
+                .adminSharePercent(Double.parseDouble(shareStr))
                 .shopRevenues(shopRevenues)
                 .barberRevenues(barberRevenues)
                 .build();
@@ -275,6 +288,14 @@ public class AdminService {
                 .status(a.getStatus())
                 .priceCharged(a.getPriceCharged())
                 .build());
+    }
+
+    @Transactional
+    public void updateSetting(String key, String value) {
+        com.trimlink.module.admin.entity.PlatformSetting setting = platformSettingRepository.findByKey(key)
+                .orElse(com.trimlink.module.admin.entity.PlatformSetting.builder().key(key).build());
+        setting.setValue(value);
+        platformSettingRepository.save(setting);
     }
 
     private List<QueueStatus> activeQueueStatuses() {
