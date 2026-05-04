@@ -2,7 +2,7 @@ FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN MAVEN_OPTS="-Xmx384m -XX:MaxRAMPercentage=75.0" mvn clean package -DskipTests -T 1
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
