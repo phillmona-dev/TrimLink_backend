@@ -76,7 +76,7 @@ spring:
 
 # ==================== SERVER ====================
 server:
-  port: ${SERVER_PORT:9090}
+  port: ${PORT:9090}
   servlet:
     context-path: /api/v1
   compression:

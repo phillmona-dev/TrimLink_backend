@@ -12,7 +12,10 @@ import com.trimlink.module.service.repository.ServiceRepository;
 import com.trimlink.module.shop.entity.BarberShop;
 import com.trimlink.module.shop.entity.WorkingHours;
 import com.trimlink.module.shop.repository.BarberShopRepository;
+import com.trimlink.module.shop.repository.DailyWorkLogRepository;
 import com.trimlink.module.shop.repository.WorkingHoursRepository;
+import com.trimlink.module.notification.service.WebSocketNotificationService;
+import com.trimlink.module.booking.repository.ReviewRepository;
 import com.trimlink.module.user.entity.BarberProfile;
 import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
@@ -50,7 +53,10 @@ class BookingServiceTest {
     @Mock private BarberShopRepository   barberShopRepository;
     @Mock private ServiceRepository      serviceRepository;
     @Mock private WorkingHoursRepository workingHoursRepository;
+    @Mock private DailyWorkLogRepository dailyWorkLogRepository;
+    @Mock private WebSocketNotificationService webSocketNotificationService;
     @Mock private EventProducer          eventProducer;
+    @Mock private ReviewRepository       reviewRepository;
 
     @InjectMocks
     private BookingService bookingService;
@@ -209,9 +215,9 @@ class BookingServiceTest {
 
         // Existing appointment at 10:00–10:30
         Appointment existing = mock(Appointment.class);
-        when(existing.getScheduledStart()).thenReturn(nextWed.atTime(10, 0));
-        when(existing.getScheduledEnd()).thenReturn(nextWed.atTime(10, 30));
-        when(existing.getStatus()).thenReturn(AppointmentStatus.CONFIRMED);
+        lenient().when(existing.getScheduledStart()).thenReturn(nextWed.atTime(10, 0));
+        lenient().when(existing.getScheduledEnd()).thenReturn(nextWed.atTime(10, 30));
+        lenient().when(existing.getStatus()).thenReturn(AppointmentStatus.CONFIRMED);
 
         when(barberProfileRepository.findById(barberId)).thenReturn(Optional.of(barber));
         when(serviceRepository.findById(serviceId)).thenReturn(Optional.of(service));

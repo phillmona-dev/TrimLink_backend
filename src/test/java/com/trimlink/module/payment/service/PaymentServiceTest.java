@@ -65,6 +65,7 @@ class PaymentServiceTest {
                 .phoneNumber("+251912000003")
                 .email("selam@trimlink.et")
                 .role(Role.CUSTOMER).build();
+        customer.setId(customerId);
 
         // inject @Value fields
         ReflectionTestUtils.setField(paymentService, "chapaWebhookSecret", "test_webhook_secret");
@@ -159,6 +160,9 @@ class PaymentServiceTest {
         ChapaClient.ChapaVerifyResponse.VerifyData data = new ChapaClient.ChapaVerifyResponse.VerifyData();
         data.setStatus("success");
         data.setReference("chapa_internal_ref_001");
+        data.setTxRef(txRef);
+        data.setAmount(new BigDecimal("200.00"));
+        data.setCurrency("ETB");
         verifyResponse.setData(data);
         when(chapaClient.verifyTransaction(txRef)).thenReturn(verifyResponse);
         when(paymentRepository.save(any())).thenAnswer(i -> i.getArgument(0));
