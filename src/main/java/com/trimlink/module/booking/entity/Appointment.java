@@ -34,7 +34,7 @@ import java.time.LocalDateTime;
 public class Appointment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id", nullable = true)
     private User customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -46,7 +46,7 @@ public class Appointment extends BaseEntity {
     private BarberShop shop;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "service_id", nullable = false)
+    @JoinColumn(name = "service_id", nullable = true)
     private Service service;
 
     @Column(name = "scheduled_start", nullable = false)
@@ -74,7 +74,7 @@ public class Appointment extends BaseEntity {
     /**
      * Price charged at time of booking (snapshot; service price may change later).
      */
-    @Column(name = "price_charged", nullable = false, precision = 10, scale = 2)
+    @Column(name = "price_charged", nullable = true, precision = 10, scale = 2)
     private BigDecimal priceCharged;
 
     @Column(name = "notes", length = 500)

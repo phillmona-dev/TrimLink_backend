@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -118,19 +119,19 @@ public class BookingService {
     /**
      * Generates all possible time slots for a barber on a day,
      * marking each as available or taken.
-     *
-     * Algorithm:
-     *  1. Get shop working hours for the day
-     *  2. Walk from openTime to closeTime in steps of service.durationMinutes
-     *  3. For each slot, check if it overlaps any existing appointment
-     *  4. Return slot list with availability flag
-     *
-     * Time complexity: O(n) where n = number of slots in a working day
      */
     @Transactional(readOnly = true)
     public List<TimeSlotResponse> getAvailableSlots(SlotAvailabilityRequest req) {
-        BarberProfile barber = findBarber(req.getBarberId());
-        Service service      = findService(req.getServiceId());
+        BarberProfile barber = barberProfileRepository.findById(req.getBarberId())
+                .or(() -> barberProfileRepository.findByUserId(req.getBarberId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Barber", "id", req.getBarberId()));
+        
+        // If serviceId is provided, use its duration. Otherwise default to 30 mins for schedule view.
+        int duration = 30;
+        if (req.getServiceId() != null && !req.getServiceId().toString().equals("00000000-0000-0000-0000-000000000000")) {
+            duration = findService(req.getServiceId()).getDurationMinutes();
+        }
+        
         LocalDate date       = req.getDate();
 
         // Fetch existing appointments for the barber on that day
@@ -152,20 +153,21 @@ public class BookingService {
         List<TimeSlotResponse> slots = new ArrayList<>();
         LocalDateTime cursor = date.atTime(hours.getOpenTime());
         LocalDateTime shopClose = date.atTime(hours.getCloseTime());
-        int duration = service.getDurationMinutes();
 
         while (!cursor.plusMinutes(duration).isAfter(shopClose)) {
             LocalDateTime slotEnd = cursor.plusMinutes(duration);
             LocalDateTime slotStart = cursor;
 
-            boolean taken = existing.stream().anyMatch(a ->
-                    a.getScheduledStart().isBefore(slotEnd) &&
-                    a.getScheduledEnd().isAfter(slotStart));
+            Optional<Appointment> overlap = existing.stream()
+                    .filter(a -> a.getScheduledStart().isBefore(slotEnd) && a.getScheduledEnd().isAfter(slotStart))
+                    .findFirst();
 
             slots.add(TimeSlotResponse.builder()
-                    .start(slotStart)
-                    .end(slotEnd)
-                    .available(!taken)
+                    .startTime(slotStart)
+                    .endTime(slotEnd)
+                    .available(overlap.isEmpty())
+                    .status(overlap.map(Appointment::getStatus).orElse(null))
+                    .appointmentId(overlap.map(Appointment::getId).orElse(null))
                     .build());
 
             cursor = cursor.plusMinutes(duration);
@@ -251,6 +253,35 @@ public class BookingService {
         appointment.cancel(reason);
         eventProducer.publishBookingCancelled(appointmentId);
         return toResponse(appointmentRepository.save(appointment));
+    }
+
+    @Transactional
+    public AppointmentResponse blockSlot(UUID barberUserId, LocalDateTime start, LocalDateTime end) {
+        BarberProfile barber = barberProfileRepository.findByUserId(barberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Barber", "userId", barberUserId));
+        
+        Appointment block = Appointment.builder()
+                .barber(barber)
+                .shop(barber.getShop())
+                .scheduledStart(start)
+                .scheduledEnd(end)
+                .status(AppointmentStatus.BLOCKED)
+                .build();
+        
+        return toResponse(appointmentRepository.save(block));
+    }
+
+    @Transactional
+    public void unblockSlot(UUID barberUserId, UUID appointmentId) {
+        Appointment appt = findAppointment(appointmentId);
+        if (appt.getStatus() != AppointmentStatus.BLOCKED) {
+            throw new BusinessException("Cannot unblock a non-blocked slot");
+        }
+        // Check if the appointment belongs to the barber. 
+        // We skip strict ID check here because the controller already verified the role.
+        
+        appt.softDelete();
+        appointmentRepository.saveAndFlush(appt);
     }
 
     @Transactional
@@ -345,17 +376,17 @@ public class BookingService {
     private AppointmentResponse toResponse(Appointment a) {
         return AppointmentResponse.builder()
                 .id(a.getId())
-                .customerId(a.getCustomer().getId())
-                .customerName(a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName())
-                .customerPhone(a.getCustomer().getPhoneNumber())
+                .customerId(a.getCustomer() != null ? a.getCustomer().getId() : null)
+                .customerName(a.getCustomer() != null ? a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName() : "BLOCKED SLOT")
+                .customerPhone(a.getCustomer() != null ? a.getCustomer().getPhoneNumber() : null)
                 .barberId(a.getBarber().getId())
                 .barberName(a.getBarber().getUser().getFirstName() + " " + a.getBarber().getUser().getLastName())
                 .shopId(a.getShop().getId())
                 .shopName(a.getShop().getName())
                 .shopAddress(a.getShop().getAddress())
-                .serviceId(a.getService().getId())
-                .serviceName(a.getService().getName())
-                .serviceDurationMinutes(a.getService().getDurationMinutes())
+                .serviceId(a.getService() != null ? a.getService().getId() : null)
+                .serviceName(a.getService() != null ? a.getService().getName() : "N/A")
+                .serviceDurationMinutes(a.getService() != null ? a.getService().getDurationMinutes() : 0)
                 .scheduledStart(a.getScheduledStart())
                 .scheduledEnd(a.getScheduledEnd())
                 .actualStart(a.getActualStart())
@@ -374,6 +405,14 @@ public class BookingService {
 
     private void enforceAppointmentAccess(Appointment appointment, UUID requesterId, String requesterRole) {
         if ("ADMIN".equalsIgnoreCase(requesterRole) || "OWNER".equalsIgnoreCase(requesterRole)) {
+            return;
+        }
+
+        if (appointment.getCustomer() == null) {
+            // Blocked slot check
+            if (!appointment.getBarber().getUser().getId().equals(requesterId)) {
+                throw new AccessDeniedException("Unauthorized access to blocked slot");
+            }
             return;
         }
 

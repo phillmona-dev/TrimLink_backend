@@ -8,6 +8,7 @@ package com.trimlink.module.booking.entity;
  * COMPLETED → service was delivered
  * CANCELLED → cancelled by user or barber
  * NO_SHOW   → customer did not arrive
+ * BLOCKED   → slot manually closed by barber
  */
 public enum AppointmentStatus {
     PENDING,
@@ -17,5 +18,6 @@ public enum AppointmentStatus {
     CANCELLED,
     NO_SHOW,
     REJECTED,
-    RESCHEDULE_REQUESTED
+    RESCHEDULE_REQUESTED,
+    BLOCKED
 }

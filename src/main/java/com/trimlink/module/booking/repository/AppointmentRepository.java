@@ -28,7 +28,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.barber.id = :barberId
-              AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
+              AND a.status NOT IN ('CANCELLED', 'NO_SHOW', 'REJECTED', 'COMPLETED')
               AND a.scheduledStart < :end
               AND a.scheduledEnd > :start
             """)
@@ -90,12 +90,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
      */
     @Query("""
             SELECT a FROM Appointment a
-            JOIN FETCH a.service
-            JOIN FETCH a.customer c
+            LEFT JOIN FETCH a.service
+            LEFT JOIN FETCH a.customer
             WHERE a.barber.id = :barberId
               AND a.scheduledStart >= :dayStart
               AND a.scheduledStart < :dayEnd
-              AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
+              AND a.status NOT IN ('CANCELLED', 'NO_SHOW', 'REJECTED', 'COMPLETED')
               AND a.deleted = false
             ORDER BY a.scheduledStart
             """)

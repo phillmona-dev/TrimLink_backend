@@ -30,17 +30,27 @@ public class WorkingHoursInitializer implements CommandLineRunner {
         log.info("Checking and initializing missing working hours for shops...");
         shopRepository.findAll().forEach(shop -> {
             for (DayOfWeek day : DayOfWeek.values()) {
-                boolean exists = workingHoursRepository
-                        .findByShopIdAndDayOfWeek(shop.getId(), day).isPresent();
-                if (!exists) {
-                    workingHoursRepository.save(WorkingHours.builder()
-                            .shop(shop)
-                            .dayOfWeek(day)
-                            .openTime(LocalTime.of(8, 0))
-                            .closeTime(LocalTime.of(20, 0))
-                            .closed(false)
-                            .build());
-                }
+                workingHoursRepository.findByShopIdAndDayOfWeek(shop.getId(), day)
+                    .ifPresentOrElse(
+                        h -> {
+                            // Migration: Update old 8 PM cutoff to new 9 PM (3:00 LT Night) cutoff
+                            if (h.getCloseTime().equals(LocalTime.of(20, 0))) {
+                                log.info("Updating shop {} hours for {} to 21:00", shop.getName(), day);
+                                h.setCloseTime(LocalTime.of(21, 0));
+                                workingHoursRepository.save(h);
+                            }
+                        },
+                        () -> {
+                            // Initialization: Create default hours (8 AM - 9 PM)
+                            workingHoursRepository.save(WorkingHours.builder()
+                                    .shop(shop)
+                                    .dayOfWeek(day)
+                                    .openTime(LocalTime.of(8, 0))
+                                    .closeTime(LocalTime.of(21, 0))
+                                    .closed(false)
+                                    .build());
+                        }
+                    );
             }
         });
     }

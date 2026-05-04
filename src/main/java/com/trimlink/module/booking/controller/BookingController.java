@@ -157,4 +157,24 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(
                 bookingService.cancelAppointmentForUser(id, principal.getUserId(), principal.getRole(), reason)));
     }
+
+    @Operation(summary = "Manually block a time slot (barber/owner)")
+    @PostMapping("/block")
+    @PreAuthorize("hasAnyRole('BARBER', 'OWNER')")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> block(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime start,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime end) {
+        return ResponseEntity.ok(ApiResponse.ok(bookingService.blockSlot(principal.getUserId(), start, end)));
+    }
+
+    @Operation(summary = "Unblock a manually closed slot (barber/owner)")
+    @PostMapping("/unblock/{id}")
+    @PreAuthorize("hasAnyRole('BARBER', 'OWNER')")
+    public ResponseEntity<ApiResponse<Void>> unblock(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID id) {
+        bookingService.unblockSlot(principal.getUserId(), id);
+        return ResponseEntity.ok(ApiResponse.ok("Slot unblocked successfully", null));
+    }
 }

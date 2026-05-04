@@ -135,7 +135,7 @@ public class ShopController {
                     .shop(shop)
                     .dayOfWeek(day)
                     .openTime(java.time.LocalTime.of(8, 0))
-                    .closeTime(java.time.LocalTime.of(20, 0))
+                    .closeTime(java.time.LocalTime.of(21, 0))
                     .closed(false)
                     .build());
         }
