@@ -34,7 +34,7 @@ public class BarberServiceAssignmentService {
     @Transactional(readOnly = true)
     public List<BarberServiceAssignmentResponse> listAssignments(UUID barberId) {
         findBarber(barberId);
-        return assignmentRepository.findByBarberProfileIdAndActiveTrueAndDeletedFalseOrderByCreatedAtAsc(barberId)
+        return assignmentRepository.findByBarberProfileIdAndDeletedFalseOrderByCreatedAtAsc(barberId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -83,14 +83,6 @@ public class BarberServiceAssignmentService {
     private BarberServiceAssignment upsertSingle(BarberProfile barber, BarberServiceAssignmentRequest request) {
         var service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", request.getServiceId()));
-
-        if (!service.isActive()) {
-            throw new BusinessException("Service '" + service.getName() + "' (ID: " + service.getId() + ") is inactive and cannot be assigned to barbers.");
-        }
-
-        if (service.isDeleted()) {
-            throw new BusinessException("Service '" + service.getName() + "' (ID: " + service.getId() + ") is deleted and cannot be assigned to barbers.");
-        }
 
         if (request.getCustomPrice() != null &&
             request.getCustomPrice().setScale(2, java.math.RoundingMode.HALF_UP)
