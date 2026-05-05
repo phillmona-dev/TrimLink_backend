@@ -306,10 +306,17 @@ public class AdminService {
                     shop.getId(), com.trimlink.module.booking.entity.AppointmentStatus.COMPLETED, 
                     LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.of(2100, 1, 1, 0, 0));
             
+            String ownerName = barberProfileRepository.findByShopIdAndDeletedFalse(shop.getId(), Pageable.unpaged())
+                    .getContent().stream()
+                    .filter(b -> b.getUser().getRole() == com.trimlink.module.user.entity.Role.OWNER)
+                    .map(b -> b.getUser().getFirstName() + " " + b.getUser().getLastName())
+                    .findFirst()
+                    .orElse("N/A");
+
             return com.trimlink.module.admin.dto.ShopFinanceSummary.builder()
                     .shopId(shop.getId())
                     .shopName(shop.getName())
-                    .ownerName(shop.getOwner() != null ? shop.getOwner().getFirstName() + " " + shop.getOwner().getLastName() : "N/A")
+                    .ownerName(ownerName)
                     .totalRevenue(revenue)
                     .adminShare(revenue.multiply(sharePercent))
                     .totalTransactions(txCount)

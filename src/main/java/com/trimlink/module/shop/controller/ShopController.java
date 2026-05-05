@@ -487,6 +487,104 @@ public class ShopController {
         return ResponseEntity.ok(ApiResponse.ok("Hours updated", workingHoursRepository.findByShopIdOrderByDayOfWeek(shopId)));
     }
 
+    @Operation(summary = "Get all appointments for my shop (owner)")
+    @GetMapping("/my-shop/appointments")
+    @PreAuthorize("hasRole('OWNER')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<PageResponse<com.trimlink.module.booking.dto.AppointmentResponse>>> getMyShopAppointments(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestParam(required = false) com.trimlink.module.booking.entity.AppointmentStatus status,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @PageableDefault(size = 20, sort = "scheduledStart", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        User owner = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
+
+        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+            throw new RuntimeException("You are not associated with any shop");
+        }
+
+        UUID shopId = owner.getBarberProfile().getShop().getId();
+
+        java.time.LocalDateTime from = startDate != null ? startDate.atStartOfDay() : java.time.LocalDateTime.of(2000, 1, 1, 0, 0);
+        java.time.LocalDateTime to = endDate != null ? endDate.atTime(23, 59, 59) : java.time.LocalDateTime.of(2100, 1, 1, 0, 0);
+
+        org.springframework.data.domain.Page<com.trimlink.module.booking.entity.Appointment> page =
+                appointmentRepository.findByShopIdWithFilters(shopId, status, from, to, query, pageable);
+
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(page.map(a -> {
+            String custName = "Walk-in";
+            if (a.getCustomer() != null) {
+                custName = a.getCustomer().getFirstName() + " " + a.getCustomer().getLastName();
+            }
+            String svcName = a.getService() != null ? a.getService().getName() : "N/A";
+            String barberName = "";
+            if (a.getBarber() != null && a.getBarber().getUser() != null) {
+                barberName = a.getBarber().getUser().getFirstName() + " " + a.getBarber().getUser().getLastName();
+            }
+            return com.trimlink.module.booking.dto.AppointmentResponse.builder()
+                    .id(a.getId())
+                    .shopName(a.getShop().getName())
+                    .barberName(barberName)
+                    .customerName(custName)
+                    .serviceName(svcName)
+                    .scheduledStart(a.getScheduledStart())
+                    .scheduledEnd(a.getScheduledEnd())
+                    .status(a.getStatus())
+                    .priceCharged(a.getPriceCharged())
+                    .build();
+        }))));
+    }
+
+    @Operation(summary = "Get financial summary for my shop (owner)")
+    @GetMapping("/my-shop/finance")
+    @PreAuthorize("hasRole('OWNER')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getMyShopFinance(
+            @AuthenticationPrincipal AuthenticatedUser principal) {
+
+        User owner = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getUserId()));
+
+        if (owner.getBarberProfile() == null || owner.getBarberProfile().getShop() == null) {
+            throw new RuntimeException("You are not associated with any shop");
+        }
+
+        UUID shopId = owner.getBarberProfile().getShop().getId();
+        String shopName = owner.getBarberProfile().getShop().getName();
+
+        java.time.LocalDateTime farPast = java.time.LocalDateTime.of(2000, 1, 1, 0, 0);
+        java.time.LocalDateTime farFuture = java.time.LocalDateTime.of(2100, 1, 1, 0, 0);
+        java.time.LocalDateTime todayStart = java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime todayEnd = java.time.LocalDate.now().atTime(java.time.LocalTime.MAX);
+
+        java.math.BigDecimal totalRevenue = appointmentRepository.sumRevenueByShop(shopId, farPast, farFuture);
+        if (totalRevenue == null) totalRevenue = java.math.BigDecimal.ZERO;
+
+        java.math.BigDecimal revenueToday = appointmentRepository.sumRevenueByShop(shopId, todayStart, todayEnd);
+        if (revenueToday == null) revenueToday = java.math.BigDecimal.ZERO;
+
+        long totalApproved = appointmentRepository.countByShopIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                shopId, com.trimlink.module.booking.entity.AppointmentStatus.COMPLETED, farPast, farFuture)
+                + appointmentRepository.countByShopIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                shopId, com.trimlink.module.booking.entity.AppointmentStatus.CONFIRMED, farPast, farFuture);
+
+        long totalPending = appointmentRepository.countByShopIdAndStatusAndScheduledStartBetweenAndDeletedFalse(
+                shopId, com.trimlink.module.booking.entity.AppointmentStatus.PENDING, farPast, farFuture);
+
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("shopId", shopId.toString());
+        result.put("shopName", shopName);
+        result.put("totalRevenue", totalRevenue);
+        result.put("revenueToday", revenueToday);
+        result.put("totalApproved", totalApproved);
+        result.put("totalPending", totalPending);
+
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
     // ─── Inner DTOs ──────────────────────────────────────────────────────────
     @Data
     public static class AvailabilityRequest {

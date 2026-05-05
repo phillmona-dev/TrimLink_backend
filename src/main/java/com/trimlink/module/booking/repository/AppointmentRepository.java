@@ -211,4 +211,42 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
             GROUP BY b.id, u.firstName, u.lastName
             """)
     List<Object[]> sumRevenueGroupByBarber();
+
+    @Query(value = """
+            SELECT a FROM Appointment a
+            LEFT JOIN FETCH a.service svc
+            LEFT JOIN FETCH a.customer c
+            LEFT JOIN FETCH a.barber b
+            LEFT JOIN FETCH b.user u
+            WHERE a.shop.id = :shopId
+              AND a.deleted = false
+              AND (a.status = :status OR :status IS NULL)
+              AND a.scheduledStart >= :from
+              AND a.scheduledStart <= :to
+              AND (:query IS NULL OR :query = ''
+                   OR LOWER(COALESCE(c.firstName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(c.lastName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(u.firstName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(u.lastName,'')) LIKE LOWER(CONCAT('%', :query, '%')))
+            """,
+            countQuery = """
+            SELECT COUNT(a) FROM Appointment a
+            WHERE a.shop.id = :shopId
+              AND a.deleted = false
+              AND (a.status = :status OR :status IS NULL)
+              AND a.scheduledStart >= :from
+              AND a.scheduledStart <= :to
+              AND (:query IS NULL OR :query = ''
+                   OR LOWER(COALESCE(a.customer.firstName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(a.customer.lastName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(a.barber.user.firstName,'')) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(COALESCE(a.barber.user.lastName,'')) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<Appointment> findByShopIdWithFilters(
+            @Param("shopId") UUID shopId,
+            @Param("status") AppointmentStatus status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to,
+            @Param("query") String query,
+            Pageable pageable);
 }
