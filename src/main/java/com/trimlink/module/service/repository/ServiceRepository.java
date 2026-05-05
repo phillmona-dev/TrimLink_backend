@@ -10,8 +10,8 @@ import java.util.UUID;
 
 @Repository
 public interface ServiceRepository extends JpaRepository<Service, UUID> {
-    Page<Service> findByActiveTrue(Pageable pageable);
+    Page<Service> findByActiveTrueAndDeletedFalse(Pageable pageable);
 
-    @org.springframework.data.jpa.repository.Query("SELECT s FROM Service s WHERE s.active = true AND (s.shopId = :shopId OR s.shopId IS NULL)")
+    @org.springframework.data.jpa.repository.Query("SELECT s FROM Service s WHERE s.active = true AND s.deleted = false AND (s.shopId = :shopId OR s.shopId IS NULL)")
     java.util.List<Service> findActiveByShopIdOrGlobal(java.util.UUID shopId);
 }

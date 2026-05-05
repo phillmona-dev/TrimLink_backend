@@ -85,7 +85,11 @@ public class BarberServiceAssignmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", request.getServiceId()));
 
         if (!service.isActive()) {
-            throw new BusinessException("Inactive services cannot be assigned to barbers.");
+            throw new BusinessException("Service '" + service.getName() + "' (ID: " + service.getId() + ") is inactive and cannot be assigned to barbers.");
+        }
+
+        if (service.isDeleted()) {
+            throw new BusinessException("Service '" + service.getName() + "' (ID: " + service.getId() + ") is deleted and cannot be assigned to barbers.");
         }
 
         if (request.getCustomPrice() != null &&
