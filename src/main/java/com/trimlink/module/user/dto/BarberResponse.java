@@ -19,6 +19,7 @@ public class BarberResponse {
     private int totalReviews;
     private boolean available;
     private String status; // IDLE or BUSY
+    private UUID shopId;
     private List<BarberServiceAssignmentResponse> serviceAssignments;
 
     public static BarberResponse from(BarberProfile profile) {
@@ -55,6 +56,7 @@ public class BarberResponse {
                 .totalReviews(profile.getTotalReviews())
                 .available(profile.isAvailable())
                 .status(status)
+                .shopId(profile.getShop() != null ? profile.getShop().getId() : null)
                 .serviceAssignments(assignments)
                 .build();
     }
