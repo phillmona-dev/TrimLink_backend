@@ -13,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByUsername(String username);
     Optional<User> findByPhoneNumber(String phoneNumber);
     boolean existsByPhoneNumber(String phoneNumber);
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"barberProfile", "barberProfile.shop"})
     org.springframework.data.domain.Page<User> findAll(org.springframework.data.domain.Pageable pageable);

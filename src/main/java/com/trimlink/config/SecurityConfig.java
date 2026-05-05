@@ -1,6 +1,6 @@
 package com.trimlink.config;
 
-import com.trimlink.security.JwtAuthFilter;
+import com.trimlink.security.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -38,6 +38,9 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final ApiAuthenticationEntryPoint authenticationEntryPoint;
     private final ApiAccessDeniedHandler accessDeniedHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 
     @Value("${trimlink.security.cors.allowed-origin-patterns:*}")
     private String allowedOriginPatterns;
@@ -52,7 +55,9 @@ public class SecurityConfig {
             "/ws/**",
             "/support/send",
             "/support/history",
-            "/uploads/receipts/**"
+            "/uploads/receipts/**",
+            "/oauth2/authorization/**",
+            "/login/oauth2/code/**"
     };
 
     @Bean
@@ -74,6 +79,11 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/barber/**").hasAnyRole("BARBER", "OWNER", "ADMIN")
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oauth2AuthenticationSuccessHandler)
+                        .failureHandler(oauth2AuthenticationFailureHandler)
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

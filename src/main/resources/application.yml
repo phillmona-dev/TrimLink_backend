@@ -7,6 +7,22 @@ spring:
       enabled: true
       max-file-size: 10MB
       max-request-size: 10MB
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:YOUR_GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET:YOUR_GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID:YOUR_FACEBOOK_CLIENT_ID}
+            client-secret: ${FACEBOOK_CLIENT_SECRET:YOUR_FACEBOOK_CLIENT_SECRET}
+            scope:
+              - email
+              - public_profile
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/trimlink}
@@ -91,15 +107,17 @@ trimlink:
     base-url: ${APP_BASE_URL:http://localhost:9090/api/v1}
   security:
     jwt:
-      secret: ${JWT_SECRET:bXlfc3VwZXJfc2VjcmV0X2tleV9mb3JfdHJpbWxpbmtfYXBwbGljYXRpb25fdGhhdF9pc192ZXJ5X2xvbmc=}
-      access-token-expiry: 900000        # 15 minutes (ms)
-      refresh-token-expiry: 604800000    # 7 days (ms)
+      secret: ${JWT_SECRET:YOUR_JWT_SECRET_KEY_MUST_BE_AT_LEAST_32_CHARACTERS}
+      access-token-expiry: 900000 # 15 minutes (ms)
+      refresh-token-expiry: 604800000 # 7 days (ms)
     otp:
       ttl-minutes: 5
       digits: 6
       max-attempts: 3
     cors:
       allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
+    oauth2:
+      redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
 
   # ==================== PAYMENT ====================
   payment:
@@ -125,7 +143,7 @@ trimlink:
   # ==================== NOTIFICATION ====================
   notification:
     sms:
-      provider: ${SMS_PROVIDER:afromessage}   # or 'infobip'
+      provider: ${SMS_PROVIDER:afromessage} # or 'infobip'
       api-url: ${SMS_API_URL:https://api.afromessage.com/api/send}
       api-key: ${SMS_API_KEY:}
       sender-id: ${SMS_SENDER_ID:TrimLink}

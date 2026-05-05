@@ -1,5 +1,6 @@
 package com.trimlink.module.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.trimlink.common.audit.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,8 +24,16 @@ public class User extends BaseEntity {
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(name = "password", nullable = false)
+    @JsonIgnore
+    @Column(name = "password")
     private String password;
+
+    @Column(name = "provider", length = 20)
+    private String provider;
+
+    @JsonIgnore
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(name = "phone_number", unique = true, length = 20)
     private String phoneNumber;
@@ -59,6 +68,7 @@ public class User extends BaseEntity {
     private boolean phoneVerified = false;
 
     // Bidirectional 1:1 with BarberProfile (null unless role = BARBER or OWNER)
+    @JsonIgnore
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private BarberProfile barberProfile;
 }

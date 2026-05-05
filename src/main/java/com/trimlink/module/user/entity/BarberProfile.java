@@ -1,5 +1,6 @@
 package com.trimlink.module.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.trimlink.common.audit.BaseEntity;
 import com.trimlink.module.shop.entity.BarberShop;
 import jakarta.persistence.*;
@@ -22,6 +23,7 @@ import java.util.List;
 @Builder
 public class BarberProfile extends BaseEntity {
 
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;

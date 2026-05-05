@@ -27,13 +27,23 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("Registration successful", auth));
     }
 
-    @Operation(summary = "Register a new barber shop (requires admin approval)")
+    @Operation(summary = "Shop registration submitted for approval")
     @PostMapping("/register/shop")
     public ResponseEntity<ApiResponse<AuthResponse>> registerShop(
             @Valid @RequestBody ShopRegistrationRequest request) {
 
         AuthResponse auth = authService.registerShop(request);
         return ResponseEntity.ok(ApiResponse.ok("Shop registration submitted for approval", auth));
+    }
+
+    @Operation(summary = "Complete shop registration for authenticated users (e.g. Google users)")
+    @PostMapping("/complete-shop-registration")
+    public ResponseEntity<ApiResponse<AuthResponse>> completeShopRegistration(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.trimlink.security.AuthenticatedUser principal,
+            @Valid @RequestBody CompleteShopRegistrationRequest request) {
+
+        AuthResponse auth = authService.completeShopRegistration(principal.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Shop setup submitted for approval", auth));
     }
 
     @Operation(summary = "Login with username and password")

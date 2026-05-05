@@ -151,6 +151,65 @@ public class AuthService {
                 .build();
     }
 
+    // --- Complete Shop Registration (for logged in users like Google users) ---
+
+    @Transactional
+    public AuthResponse completeShopRegistration(UUID userId, CompleteShopRegistrationRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // 1. Create Shop
+        BarberShop shop = BarberShop.builder()
+                .name(request.getShopName())
+                .city(request.getCity())
+                .address(request.getAddress())
+                .description(request.getShopDescription())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .active(false)
+                .build();
+        shop = barberShopRepository.save(shop);
+
+        // 2. Update User to OWNER
+        user.setRole(Role.OWNER);
+        user.setApprovalStatus(ApprovalStatus.PENDING);
+        user.setActive(true); // Keep active so they can see their profile and pending status
+        user = userRepository.save(user);
+
+        // 3. Create BarberProfile
+        BarberProfile profile = BarberProfile.builder()
+                .user(user)
+                .shop(shop)
+                .available(false)
+                .build();
+        barberProfileRepository.save(profile);
+
+        log.info("User {} upgraded to Owner (pending approval) for shop {}", userId, shop.getName());
+
+        // 4. Notify Admins
+        try {
+            notificationService.notifyAdmins(Map.of(
+                "type", "SHOP_REGISTRATION",
+                "id", user.getId().toString(),
+                "shopName", shop.getName(),
+                "ownerName", user.getFirstName() + " " + user.getLastName(),
+                "timestamp", System.currentTimeMillis()
+            ));
+        } catch (Exception e) {
+            log.error("Failed to notify admins about shop completion", e);
+        }
+
+        return AuthResponse.builder()
+                .userId(user.getId())
+                .accessToken(null)
+                .refreshToken(null)
+                .accessTokenExpiresIn(0L)
+                .phone(user.getUsername())
+                .role(user.getRole().name())
+                .newUser(false)
+                .build();
+    }
+
     // --- Login ---
 
     @Transactional(readOnly = true)
@@ -212,8 +271,9 @@ public class AuthService {
         User user   = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        if (user.getApprovalStatus() == ApprovalStatus.PENDING) {
-            throw new OtpException("Your account is pending admin approval.");
+        // Allow PENDING users to refresh tokens so they can stay on the "pending approval" or "setup" pages
+        if (user.getApprovalStatus() == ApprovalStatus.REJECTED) {
+            throw new OtpException("Your account registration was rejected.");
         }
 
         String newAccessToken  = jwtTokenProvider.generateAccessToken(
