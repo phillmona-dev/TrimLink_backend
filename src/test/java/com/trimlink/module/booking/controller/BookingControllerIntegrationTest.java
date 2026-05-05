@@ -10,7 +10,12 @@ import com.trimlink.module.booking.dto.CreateAppointmentRequest;
 import com.trimlink.module.booking.service.BookingService;
 import com.trimlink.security.JwtAuthFilter;
 import com.trimlink.security.JwtTokenProvider;
+import com.trimlink.security.CustomOAuth2UserService;
+import com.trimlink.security.OAuth2AuthenticationSuccessHandler;
+import com.trimlink.security.OAuth2AuthenticationFailureHandler;
+import com.trimlink.config.TestSecurityConfig;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.test.context.ActiveProfiles;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -33,8 +38,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BookingController.class)
+@ActiveProfiles("test")
 @Import({
         SecurityConfig.class,
+        TestSecurityConfig.class,
         ApiAuthenticationEntryPoint.class,
         ApiAccessDeniedHandler.class,
         JwtAuthFilter.class,
