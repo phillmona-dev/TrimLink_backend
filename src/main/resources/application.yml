@@ -15,7 +15,8 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
-              - email              - profile
+              - email
+              - profile
           facebook:
             client-id: ${FACEBOOK_CLIENT_ID}
             client-secret: ${FACEBOOK_CLIENT_SECRET}
@@ -106,7 +107,7 @@ trimlink:
     base-url: ${APP_BASE_URL:http://localhost:9090/api/v1}
   security:
     jwt:
-      secret: ${JWT_SECRET:YOUR_JWT_SECRET_KEY_MUST_BE_AT_LEAST_32_CHARACTERS}
+      secret: ${JWT_SECRET:VHJpbUxpbmtTdXBlclNlY3JldEtleUZvclByb2R1Y3Rpb25BbmREZXZlbG9wbWVudFB1cnBvc2VzT25seQ==}
       access-token-expiry: 900000 # 15 minutes (ms)
       refresh-token-expiry: 604800000 # 7 days (ms)
     otp:
