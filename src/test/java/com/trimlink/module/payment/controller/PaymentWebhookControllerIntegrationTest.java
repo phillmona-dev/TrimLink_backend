@@ -46,6 +46,15 @@ class PaymentWebhookControllerIntegrationTest {
     @MockBean
     private PaymentService paymentService;
 
+    @MockBean
+    private com.trimlink.security.CustomOAuth2UserService customOAuth2UserService;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+
     @Test
     @DisplayName("Chapa webhook is public and forwards payload plus signature")
     void handleChapaWebhook_public_returnsOk() throws Exception {
