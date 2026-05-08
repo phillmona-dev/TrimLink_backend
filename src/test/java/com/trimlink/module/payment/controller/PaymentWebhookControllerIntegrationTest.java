@@ -7,7 +7,12 @@ import com.trimlink.config.SecurityConfig;
 import com.trimlink.module.payment.service.PaymentService;
 import com.trimlink.security.JwtAuthFilter;
 import com.trimlink.security.JwtTokenProvider;
+import com.trimlink.security.CustomOAuth2UserService;
+import com.trimlink.security.OAuth2AuthenticationSuccessHandler;
+import com.trimlink.security.OAuth2AuthenticationFailureHandler;
+import com.trimlink.config.TestSecurityConfig;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.test.context.ActiveProfiles;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -24,8 +29,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PaymentWebhookController.class)
+@ActiveProfiles("test")
 @Import({
         SecurityConfig.class,
+        TestSecurityConfig.class,
         ApiAuthenticationEntryPoint.class,
         ApiAccessDeniedHandler.class,
         JwtAuthFilter.class,

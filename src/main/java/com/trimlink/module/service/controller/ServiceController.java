@@ -38,7 +38,7 @@ public class ServiceController {
     public ResponseEntity<ApiResponse<PageResponse<Service>>> listServices(
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.ok(
-                PageResponse.from(serviceRepository.findByActiveTrue(pageable))));
+                PageResponse.from(serviceRepository.findByActiveTrueAndDeletedFalse(pageable))));
     }
 
     // GET /services/{id}

@@ -13,6 +13,8 @@ public interface BarberServiceAssignmentRepository extends JpaRepository<BarberS
 
     List<BarberServiceAssignment> findByBarberProfileIdAndActiveTrueAndDeletedFalseOrderByCreatedAtAsc(UUID barberProfileId);
 
+    List<BarberServiceAssignment> findByBarberProfileIdAndDeletedFalseOrderByCreatedAtAsc(UUID barberProfileId);
+
     Optional<BarberServiceAssignment> findByIdAndDeletedFalse(UUID id);
 
     Optional<BarberServiceAssignment> findByBarberProfileIdAndServiceId(UUID barberProfileId, UUID serviceId);
