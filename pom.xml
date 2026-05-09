@@ -20,6 +20,7 @@
     <properties>
         <java.version>17</java.version>
         <lombok.version>1.18.46</lombok.version>
+<!--        <jjwt.version>0.11.5</jjwt.version>-->
         <jjwt.version>0.12.5</jjwt.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <testcontainers.version>1.19.7</testcontainers.version>
@@ -161,6 +162,11 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>33.2.0-jre</version>
+        </dependency>
+        <dependency>
+            <groupId>eu.bitwalker</groupId>
+            <artifactId>UserAgentUtils</artifactId>
+            <version>1.21</version>
         </dependency>
 
         <!-- ==================== TESTING ==================== -->

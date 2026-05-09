@@ -2,6 +2,7 @@ package com.trimlink.module.auth.service;
 
 import com.trimlink.common.exception.OtpException;
 import com.trimlink.common.exception.ResourceNotFoundException;
+import com.trimlink.module.audit.annotation.AuditAction;
 import com.trimlink.module.auth.dto.*;
 import com.trimlink.module.shop.entity.BarberShop;
 import com.trimlink.module.shop.repository.BarberShopRepository;
@@ -37,14 +38,25 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final WebSocketNotificationService notificationService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final LoginAttemptService loginAttemptService;
+    private final com.trimlink.security.TokenRotationService tokenRotationService;
+    private final com.trimlink.common.ratelimit.RateLimiterService rateLimiterService;
 
     @Value("${trimlink.security.jwt.access-token-expiry:900000}")
     private long accessTokenExpiry;
 
+    @Value("${trimlink.security.jwt.refresh-token-expiry:2592000000}")
+    private long refreshTokenExpiry;
+
     // --- Customer Register ---
 
     @Transactional
+    @AuditAction(action = "USER_REGISTER", resource = "USER")
     public AuthResponse register(RegisterRequest request) {
+        String clientIp = com.trimlink.common.utils.RequestUtils.getClientIp();
+        rateLimiterService.check("rate:register:" + clientIp, 3, 3600); // 3 per hour
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new OtpException("Username already exists.");
         }
@@ -66,6 +78,9 @@ public class AuthService {
         String accessToken = jwtTokenProvider.generateAccessToken(
                 user.getId(), user.getUsername(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+        
+        // Register refresh token for rotation
+        tokenRotationService.registerToken(user.getId().toString(), jwtTokenProvider.extractTokenId(refreshToken), refreshTokenExpiry);
 
         log.info("Customer registered: id={}, username={}", user.getId(), user.getUsername());
 
@@ -83,7 +98,11 @@ public class AuthService {
     // --- Shop Register ---
 
     @Transactional
+    @AuditAction(action = "SHOP_REGISTER", resource = "SHOP")
     public AuthResponse registerShop(ShopRegistrationRequest request) {
+        String clientIp = com.trimlink.common.utils.RequestUtils.getClientIp();
+        rateLimiterService.check("rate:register_shop:" + clientIp, 2, 3600); // 2 per hour
+
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new OtpException("Username already exists.");
         }
@@ -154,6 +173,7 @@ public class AuthService {
     // --- Complete Shop Registration (for logged in users like Google users) ---
 
     @Transactional
+    @AuditAction(action = "COMPLETE_SHOP_REGISTRATION", resource = "SHOP")
     public AuthResponse completeShopRegistration(UUID userId, CompleteShopRegistrationRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
@@ -213,54 +233,86 @@ public class AuthService {
     // --- Login ---
 
     @Transactional(readOnly = true)
+    @AuditAction(action = "LOGIN", resource = "USER")
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new OtpException("Invalid username or password."));
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new OtpException("Invalid username or password.");
-        }
-
-        if (user.getApprovalStatus() == ApprovalStatus.PENDING) {
-            throw new OtpException("Your account is pending admin approval.");
-        }
+        String clientIp = com.trimlink.common.utils.RequestUtils.getClientIp();
         
-        if (user.getApprovalStatus() == ApprovalStatus.REJECTED) {
-            throw new OtpException("Your account registration was rejected.");
+        // General Rate Limit per IP
+        rateLimiterService.checkApiRequest(clientIp, 50); // 50 per minute
+
+        // Check if IP or Username is blocked
+        if (loginAttemptService.isBlocked(clientIp)) {
+            throw new OtpException("Too many failed attempts from this IP. Please try again in 15 minutes.");
+        }
+        if (loginAttemptService.isBlocked(request.getUsername())) {
+            throw new OtpException("Too many failed attempts for this account. Please try again in 15 minutes.");
         }
 
-        if (!user.isActive() && user.getApprovalStatus() == ApprovalStatus.APPROVED) {
-            throw new OtpException("Your account has been deactivated. Contact support.");
+        try {
+            User user = userRepository.findByUsername(request.getUsername())
+                    .orElseThrow(() -> new OtpException("Invalid username or password."));
+
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                throw new OtpException("Invalid username or password.");
+            }
+
+            if (user.getApprovalStatus() == ApprovalStatus.PENDING) {
+                throw new OtpException("Your account is pending admin approval.");
+            }
+            
+            if (user.getApprovalStatus() == ApprovalStatus.REJECTED) {
+                throw new OtpException("Your account registration was rejected.");
+            }
+
+            if (!user.isActive() && user.getApprovalStatus() == ApprovalStatus.APPROVED) {
+                throw new OtpException("Your account has been deactivated. Contact support.");
+            }
+
+            // Check if shop is active for Barbers and Owners
+            if ((user.getRole() == Role.BARBER || user.getRole() == Role.OWNER) && 
+                user.getBarberProfile() != null && user.getBarberProfile().getShop() != null && 
+                !user.getBarberProfile().getShop().isActive()) {
+                throw new OtpException("Your shop has been deactivated. Please contact the system admin.");
+            }
+
+            // SUCCESS: Reset counters
+            loginAttemptService.loginSucceeded(clientIp);
+            loginAttemptService.loginSucceeded(request.getUsername());
+
+            String accessToken = jwtTokenProvider.generateAccessToken(
+                    user.getId(), user.getUsername(), user.getRole().name());
+            String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+            // Register refresh token for rotation
+            tokenRotationService.registerToken(user.getId().toString(), jwtTokenProvider.extractTokenId(refreshToken), refreshTokenExpiry);
+
+            log.info("User logged in: id={}, username={}", user.getId(), user.getUsername());
+
+            return AuthResponse.builder()
+                    .userId(user.getId())
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .accessTokenExpiresIn(accessTokenExpiry / 1000)
+                    .phone(user.getUsername()) 
+                    .role(user.getRole().name())
+                    .newUser(false)
+                    .build();
+
+        } catch (OtpException e) {
+            // FAILURE: Increment counters
+            loginAttemptService.loginFailed(clientIp);
+            loginAttemptService.loginFailed(request.getUsername());
+            throw e;
         }
-
-        // Check if shop is active for Barbers and Owners
-        if ((user.getRole() == Role.BARBER || user.getRole() == Role.OWNER) && 
-            user.getBarberProfile() != null && user.getBarberProfile().getShop() != null && 
-            !user.getBarberProfile().getShop().isActive()) {
-            throw new OtpException("Your shop has been deactivated. Please contact the system admin.");
-        }
-
-        String accessToken = jwtTokenProvider.generateAccessToken(
-                user.getId(), user.getUsername(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-
-        log.info("User logged in: id={}, username={}", user.getId(), user.getUsername());
-
-        return AuthResponse.builder()
-                .userId(user.getId())
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .accessTokenExpiresIn(accessTokenExpiry / 1000)
-                .phone(user.getUsername()) 
-                .role(user.getRole().name())
-                .newUser(false)
-                .build();
     }
 
     // --- Token Refresh ---
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String clientIp = com.trimlink.common.utils.RequestUtils.getClientIp();
+        rateLimiterService.checkApiRequest(clientIp, 60); // 60 per minute
+
         String refreshToken = request.getRefreshToken();
 
         if (!jwtTokenProvider.isRefreshTokenValid(refreshToken)) {
@@ -268,10 +320,17 @@ public class AuthService {
         }
 
         UUID userId = jwtTokenProvider.extractUserId(refreshToken);
-        User user   = userRepository.findById(userId)
+        String jti  = jwtTokenProvider.extractTokenId(refreshToken);
+
+        // ROTATION CHECK
+        if (!tokenRotationService.validateAndRotate(userId.toString(), jti)) {
+            throw new OtpException("Security breach detected or token expired. Please log in again.");
+        }
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        // Allow PENDING users to refresh tokens so they can stay on the "pending approval" or "setup" pages
+        // ... existing checks ...
         if (user.getApprovalStatus() == ApprovalStatus.REJECTED) {
             throw new OtpException("Your account registration was rejected.");
         }
@@ -279,6 +338,9 @@ public class AuthService {
         String newAccessToken  = jwtTokenProvider.generateAccessToken(
                 user.getId(), user.getUsername(), user.getRole().name());
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        // Register the NEW refresh token
+        tokenRotationService.registerToken(user.getId().toString(), jwtTokenProvider.extractTokenId(newRefreshToken), refreshTokenExpiry);
 
         return AuthResponse.builder()
                 .userId(user.getId())
