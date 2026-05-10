@@ -115,6 +115,15 @@ public class ServiceController {
                 serviceRepository.findActiveByShopIdOrGlobal(user.getBarberProfile().getShop().getId())));
     }
 
+    // GET /services/shop/{shopId} — Public
+    @Operation(summary = "Get service catalog for a specific shop (global + custom)")
+    @GetMapping("/shop/{shopId}")
+    public ResponseEntity<ApiResponse<java.util.List<Service>>> getShopServices(
+            @PathVariable UUID shopId) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                serviceRepository.findActiveByShopIdOrGlobal(shopId)));
+    }
+
     // PUT /services/{id} — ADMIN/OWNER only
     @Operation(summary = "Update a service")
     @PutMapping("/{id}")
