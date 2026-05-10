@@ -92,7 +92,7 @@ spring:
 
 # ==================== SERVER ====================
 server:
-  port: ${PORT:9090}
+  port: ${PORT:9093}
   servlet:
     context-path: /api/v1
   compression:
@@ -117,9 +117,10 @@ trimlink:
     cors:
       allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
     oauth2:
-      redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+        redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
 
   # ==================== PAYMENT ====================
+
   payment:
     chapa:
       base-url: ${CHAPA_BASE_URL:https://api.chapa.co/v1}
@@ -154,6 +155,7 @@ trimlink:
       firebase-credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
 
   # ==================== KAFKA TOPICS ====================
+
   kafka:
     enabled: ${KAFKA_ENABLED:false}
     topics:
@@ -191,6 +193,7 @@ resilience4j:
         wait-duration: 2s
 
 # ==================== ACTUATOR ====================
+
 management:
   endpoints:
     web:

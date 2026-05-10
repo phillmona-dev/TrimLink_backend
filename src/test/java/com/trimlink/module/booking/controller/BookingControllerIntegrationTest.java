@@ -68,6 +68,15 @@ class BookingControllerIntegrationTest {
     @MockBean
     private BookingService bookingService;
 
+    @MockBean
+    private com.trimlink.security.CustomOAuth2UserService customOAuth2UserService;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+
     @Test
     @DisplayName("Customer can create appointment")
     void createAppointment_customer_returnsCreated() throws Exception {

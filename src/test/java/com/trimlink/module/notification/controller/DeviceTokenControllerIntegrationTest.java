@@ -71,6 +71,15 @@ class DeviceTokenControllerIntegrationTest {
     @MockBean
     private DeviceTokenService deviceTokenService;
 
+    @MockBean
+    private com.trimlink.security.CustomOAuth2UserService customOAuth2UserService;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+
+    @MockBean
+    private com.trimlink.security.OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+
     @Test
     @DisplayName("Authenticated customer can register device token")
     void register_authenticated_returnsCreated() throws Exception {

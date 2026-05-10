@@ -3,6 +3,7 @@ package com.trimlink.module.admin.service;
 import com.trimlink.module.admin.dto.AdminAppointmentStats;
 import com.trimlink.module.admin.dto.DashboardStats;
 import com.trimlink.module.admin.dto.BarberPerformanceResponse;
+import com.trimlink.module.audit.annotation.AuditAction;
 import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.queue.entity.QueueStatus;
@@ -94,6 +95,7 @@ public class AdminService {
     }
 
     @Transactional
+    @AuditAction(action = "APPROVE_USER", resource = "USER")
     public void approveUser(java.util.UUID userId) {
         com.trimlink.module.user.entity.User user = userRepository.findById(userId)
                 .orElseThrow(() -> new com.trimlink.common.exception.ResourceNotFoundException("User", "id", userId));
@@ -110,6 +112,7 @@ public class AdminService {
     }
 
     @Transactional
+    @AuditAction(action = "REJECT_USER", resource = "USER")
     public void rejectUser(java.util.UUID userId) {
         com.trimlink.module.user.entity.User user = userRepository.findById(userId)
                 .orElseThrow(() -> new com.trimlink.common.exception.ResourceNotFoundException("User", "id", userId));
@@ -356,6 +359,7 @@ public class AdminService {
     }
 
     @Transactional
+    @AuditAction(action = "UPDATE_SETTING", resource = "SETTING")
     public void updateSetting(String key, String value) {
         com.trimlink.module.admin.entity.PlatformSetting setting = platformSettingRepository.findByKey(key)
                 .orElse(com.trimlink.module.admin.entity.PlatformSetting.builder().key(key).build());

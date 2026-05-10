@@ -44,6 +44,7 @@ public class JwtTokenProvider {
     public String generateRefreshToken(UUID userId) {
         return Jwts.builder()
                 .subject(userId.toString())
+                .id(UUID.randomUUID().toString()) // JTI for rotation tracking
                 .claim("type", "REFRESH")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiry))
@@ -75,6 +76,10 @@ public class JwtTokenProvider {
 
     public UUID extractUserId(String token) {
         return UUID.fromString(extractAllClaims(token).getSubject());
+    }
+
+    public String extractTokenId(String token) {
+        return extractAllClaims(token).getId();
     }
 
     public String extractRole(String token) {
