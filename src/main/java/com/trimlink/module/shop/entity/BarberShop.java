@@ -52,6 +52,10 @@ public class BarberShop extends BaseEntity {
     @Builder.Default
     private boolean active = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "platform")
+    private ShopPlatform platform;
+
     @JsonIgnore
     @OneToMany(mappedBy = "shop", fetch = FetchType.LAZY)
     @Builder.Default

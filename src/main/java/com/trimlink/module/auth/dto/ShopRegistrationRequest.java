@@ -39,4 +39,6 @@ public class ShopRegistrationRequest {
 
     private Double latitude;
     private Double longitude;
+    
+    private String platform;
 }

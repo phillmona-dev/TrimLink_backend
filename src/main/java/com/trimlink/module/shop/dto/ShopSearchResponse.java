@@ -23,6 +23,7 @@ public class ShopSearchResponse {
     private String ownerPhone;
     private long activeQueueCount;
     private long averageWaitMinutes;
+    private String platform;
     private java.util.List<BankAccountDTO> bankAccounts;
 
     @Data
@@ -48,6 +49,7 @@ public class ShopSearchResponse {
                 .active(shop.isActive())
                 .ownerName(ownerName)
                 .ownerPhone(ownerPhone)
+                .platform(shop.getPlatform() != null ? shop.getPlatform().name() : null)
                 .activeQueueCount(0) // Default, updated in service
                 .averageWaitMinutes(0)
                 .bankAccounts(shop.getBankAccounts() != null ? shop.getBankAccounts().stream()

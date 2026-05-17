@@ -40,12 +40,21 @@ public class ShopService {
     private final QueueEntryRepository queueEntryRepository;
 
     @Transactional(readOnly = true)
-    public Page<ShopSearchResponse> searchShops(String q, String city, org.springframework.data.domain.Pageable pageable) {
+    public Page<ShopSearchResponse> searchShops(String q, String city, String platform, org.springframework.data.domain.Pageable pageable) {
         org.springframework.data.jpa.domain.Specification<BarberShop> spec = (root, query, cb) -> {
             jakarta.persistence.criteria.Predicate predicate = cb.conjunction();
             
             // Only active shops
             predicate = cb.and(predicate, cb.isTrue(root.get("active")));
+
+            if (platform != null && !platform.isBlank()) {
+                try {
+                    com.trimlink.module.shop.entity.ShopPlatform enumPlatform = com.trimlink.module.shop.entity.ShopPlatform.valueOf(platform.toUpperCase());
+                    predicate = cb.and(predicate, cb.equal(root.get("platform"), enumPlatform));
+                } catch (IllegalArgumentException e) {
+                    // ignore invalid platform
+                }
+            }
             
             if (q != null && !q.isBlank()) {
                 String searchPattern = "%" + q.trim().toLowerCase() + "%";

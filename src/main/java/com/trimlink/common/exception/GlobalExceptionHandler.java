@@ -138,8 +138,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex, WebRequest request) {
         log.error("Unhandled exception at {}: {}", request.getDescription(false), ex.getMessage(), ex);
+        String msg = ex.getMessage();
+        if (msg == null || msg.trim().isEmpty()) {
+            msg = ex.getClass().getSimpleName();
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), 
-                    "An unexpected internal server error occurred. Please try again later."));
+                    "Server Error: " + msg));
     }
 }

@@ -58,9 +58,10 @@ public class ShopController {
     public ResponseEntity<ApiResponse<PageResponse<ShopSearchResponse>>> listShops(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String platform,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        var page = shopService.searchShops(q, city, pageable);
+        var page = shopService.searchShops(q, city, platform, pageable);
 
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.from(page)));
     }

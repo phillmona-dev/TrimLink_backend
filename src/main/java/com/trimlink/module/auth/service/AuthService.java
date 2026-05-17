@@ -116,6 +116,9 @@ public class AuthService {
                 .description(request.getShopDescription())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
+                .platform(request.getPlatform() != null && request.getPlatform().equalsIgnoreCase("GLOWLINK") ? 
+                          com.trimlink.module.shop.entity.ShopPlatform.GLOWLINK : 
+                          com.trimlink.module.shop.entity.ShopPlatform.TRIMLINK)
                 .active(false) // Shop needs approval too, or relies on owner status
                 .build();
         shop = barberShopRepository.save(shop);
