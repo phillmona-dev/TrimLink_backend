@@ -1,5 +1,7 @@
 package com.trimlink.module.user.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trimlink.common.exception.BusinessException;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.module.service.repository.ServiceRepository;
@@ -17,6 +19,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -30,6 +33,7 @@ public class BarberServiceAssignmentService {
     private final BarberProfileRepository barberProfileRepository;
     private final BarberServiceAssignmentRepository assignmentRepository;
     private final ServiceRepository serviceRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<BarberServiceAssignmentResponse> listAssignments(UUID barberId) {
@@ -80,6 +84,29 @@ public class BarberServiceAssignmentService {
         return toResponse(assignment);
     }
 
+    /** Update ONLY the style images for an existing service assignment. */
+    @Transactional
+    public BarberServiceAssignmentResponse updateStyleImages(UUID barberId,
+                                                             UUID assignmentId,
+                                                             List<String> styleImageUrls,
+                                                             UUID requesterId,
+                                                             String requesterRole) {
+        BarberProfile barber = findBarber(barberId);
+        enforceAccess(barber, requesterId, requesterRole);
+
+        BarberServiceAssignment assignment = assignmentRepository.findByIdAndDeletedFalse(assignmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("BarberServiceAssignment", "id", assignmentId));
+
+        if (!assignment.getBarberProfile().getId().equals(barberId)) {
+            throw new BusinessException("Assignment does not belong to the specified barber.");
+        }
+
+        assignment.setStyleImageUrls(toJson(styleImageUrls));
+        assignment = assignmentRepository.save(assignment);
+        log.info("Updated {} style images for assignment={}", styleImageUrls.size(), assignmentId);
+        return toResponse(assignment);
+    }
+
     private BarberServiceAssignment upsertSingle(BarberProfile barber, BarberServiceAssignmentRequest request) {
         var service = serviceRepository.findById(request.getServiceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service", "id", request.getServiceId()));
@@ -103,6 +130,11 @@ public class BarberServiceAssignmentService {
         assignment.setActive(true);
         assignment.setDeleted(false);
         assignment.setDeletedAt(null);
+
+        // Preserve or update style images if provided in the request
+        if (request.getStyleImageUrls() != null) {
+            assignment.setStyleImageUrls(toJson(request.getStyleImageUrls()));
+        }
 
         return assignmentRepository.save(assignment);
     }
@@ -153,6 +185,29 @@ public class BarberServiceAssignmentService {
                 .active(assignment.isActive() && !assignment.isDeleted())
                 .createdAt(assignment.getCreatedAt())
                 .updatedAt(assignment.getUpdatedAt())
+                .styleImageUrls(parseJson(assignment.getStyleImageUrls()))
                 .build();
+    }
+
+    // ─── JSON helpers ──────────────────────────────────────────────────────
+
+    private List<String> parseJson(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse styleImageUrls JSON: {}", json);
+            return Collections.emptyList();
+        }
+    }
+
+    private String toJson(List<String> urls) {
+        if (urls == null) return "[]";
+        try {
+            return objectMapper.writeValueAsString(urls);
+        } catch (Exception e) {
+            log.warn("Failed to serialize styleImageUrls: {}", e.getMessage());
+            return "[]";
+        }
     }
 }

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 /**
  * Join entity: a barber's price override for a given service.
  * A barber can charge differently from the base service price.
+ * styleImageUrls is a JSON array of image URL strings stored as TEXT.
  */
 @Entity
 @Table(name = "barber_service_assignments", uniqueConstraints = {
@@ -39,4 +40,13 @@ public class BarberServiceAssignment extends BaseEntity {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * JSON array of haircut style image URLs barber has attached to this service.
+     * Example: ["https://...", "https://..."]
+     * Stored as a plain TEXT column; parsed/serialized in the service layer.
+     */
+    @Column(name = "style_image_urls", columnDefinition = "TEXT")
+    @Builder.Default
+    private String styleImageUrls = "[]";
 }

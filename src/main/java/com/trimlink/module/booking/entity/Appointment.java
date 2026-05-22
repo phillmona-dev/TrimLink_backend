@@ -86,6 +86,13 @@ public class Appointment extends BaseEntity {
     @Column(name = "receipt_image_url", length = 500)
     private String receiptImageUrl;
 
+    /**
+     * URL of the haircut style image the customer chose (from barber's gallery or self-uploaded).
+     * Optional — null means no style reference provided.
+     */
+    @Column(name = "style_reference_url", length = 500)
+    private String styleReferenceUrl;
+
     @Column(name = "ticket_number", length = 20)
     private String ticketNumber;
 

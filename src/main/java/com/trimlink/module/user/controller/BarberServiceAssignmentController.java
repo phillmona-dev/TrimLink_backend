@@ -55,4 +55,17 @@ public class BarberServiceAssignmentController {
                 assignmentService.deactivateAssignment(
                         barberId, assignmentId, principal.getUserId(), principal.getRole())));
     }
+
+    @Operation(summary = "Update haircut styles attached to a service assignment")
+    @PutMapping("/{barberId}/assignments/{assignmentId}/styles")
+    @PreAuthorize("hasAnyRole('BARBER', 'OWNER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<BarberServiceAssignmentResponse>> updateStyleImages(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID barberId,
+            @PathVariable UUID assignmentId,
+            @RequestBody List<String> styleImageUrls) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                assignmentService.updateStyleImages(
+                        barberId, assignmentId, styleImageUrls, principal.getUserId(), principal.getRole())));
+    }
 }

@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -22,4 +23,6 @@ public class BarberServiceAssignmentResponse {
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** Parsed list of haircut style image URLs the barber has attached to this service. */
+    private List<String> styleImageUrls;
 }

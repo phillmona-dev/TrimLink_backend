@@ -97,6 +97,7 @@ public class BookingService {
                 .priceCharged(price)
                 .notes(req.getNotes())
                 .receiptImageUrl(req.getReceiptImageUrl())
+                .styleReferenceUrl(req.getStyleReferenceUrl())
                 .status(AppointmentStatus.PENDING)
                 .build();
 
@@ -398,6 +399,7 @@ public class BookingService {
                 .notes(a.getNotes())
                 .cancellationReason(a.getCancellationReason())
                 .receiptImageUrl(a.getReceiptImageUrl())
+                .styleReferenceUrl(a.getStyleReferenceUrl())
                 .reviewed(reviewRepository.existsByAppointmentId(a.getId()))
                 .createdAt(a.getCreatedAt())
                 .build();

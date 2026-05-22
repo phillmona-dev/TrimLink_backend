@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -15,4 +16,7 @@ public class BarberServiceAssignmentRequest {
 
     @DecimalMin(value = "1.0", message = "Custom price must be at least 1 ETB")
     private BigDecimal customPrice;
+
+    /** Optional list of haircut style image URLs for this service assignment. */
+    private List<String> styleImageUrls;
 }

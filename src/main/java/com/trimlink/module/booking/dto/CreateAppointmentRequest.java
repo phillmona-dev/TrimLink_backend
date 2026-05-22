@@ -27,4 +27,7 @@ public class CreateAppointmentRequest {
     private String notes;
 
     private String receiptImageUrl;
+
+    /** Optional URL of the haircut style the customer wants (from barber gallery or self-uploaded). */
+    private String styleReferenceUrl;
 }

@@ -41,6 +41,7 @@ public class AppointmentResponse {
     private String notes;
     private String cancellationReason;
     private String receiptImageUrl;
+    private String styleReferenceUrl;
     private String ticketNumber;
 
     private LocalDateTime createdAt;
