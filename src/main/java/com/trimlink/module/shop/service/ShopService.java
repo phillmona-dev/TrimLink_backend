@@ -95,7 +95,6 @@ public class ShopService {
     }
 
     @Transactional(readOnly = true)
-    @org.springframework.cache.annotation.Cacheable(value = "shops", key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<ShopSearchResponse> listAllShops(Pageable pageable) {
         Page<BarberShop> shops = shopRepository.findAll(pageable);
         return shops.map(this::mapToSearchResponse);

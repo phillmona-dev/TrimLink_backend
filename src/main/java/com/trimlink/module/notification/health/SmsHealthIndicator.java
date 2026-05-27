@@ -23,13 +23,15 @@ public class SmsHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         if (apiKey == null || apiKey.isBlank()) {
-            return Health.down()
+            return Health.up()
+                    .withDetail("status", "UNCONFIGURED")
                     .withDetail("reason", "SMS API key is missing")
                     .withDetail("provider", provider)
                     .build();
         }
 
         return Health.up()
+                .withDetail("status", "ACTIVE")
                 .withDetail("provider", provider)
                 .build();
     }
