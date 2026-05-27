@@ -23,16 +23,20 @@ public class LoginAttemptService {
      * Increments failure count for a given key (IP or Username).
      */
     public void loginFailed(String key) {
-        String attemptKey = ATTEMPT_PREFIX + key;
-        Long attempts = redisTemplate.opsForValue().increment(attemptKey);
-        
-        if (attempts == null || attempts == 1) {
-            redisTemplate.expire(attemptKey, BLOCK_DURATION_MINUTES, TimeUnit.MINUTES);
-        }
+        try {
+            String attemptKey = ATTEMPT_PREFIX + key;
+            Long attempts = redisTemplate.opsForValue().increment(attemptKey);
+            
+            if (attempts == null || attempts == 1) {
+                redisTemplate.expire(attemptKey, BLOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+            }
 
-        if (attempts != null && attempts >= MAX_ATTEMPTS) {
-            log.warn("Blocking {} due to {} failed login attempts", key, attempts);
-            redisTemplate.opsForValue().set(BLOCK_PREFIX + key, "blocked", BLOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+            if (attempts != null && attempts >= MAX_ATTEMPTS) {
+                log.warn("Blocking {} due to {} failed login attempts", key, attempts);
+                redisTemplate.opsForValue().set(BLOCK_PREFIX + key, "blocked", BLOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to register login failure in Redis for key={}: {}", key, e.getMessage());
         }
     }
 
@@ -40,14 +44,23 @@ public class LoginAttemptService {
      * Clears failure count on successful login.
      */
     public void loginSucceeded(String key) {
-        redisTemplate.delete(ATTEMPT_PREFIX + key);
-        redisTemplate.delete(BLOCK_PREFIX + key);
+        try {
+            redisTemplate.delete(ATTEMPT_PREFIX + key);
+            redisTemplate.delete(BLOCK_PREFIX + key);
+        } catch (Exception e) {
+            log.warn("Failed to clear login attempts in Redis for key={}: {}", key, e.getMessage());
+        }
     }
 
     /**
      * Checks if a given key is currently blocked.
      */
     public boolean isBlocked(String key) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(BLOCK_PREFIX + key));
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(BLOCK_PREFIX + key));
+        } catch (Exception e) {
+            log.warn("Failed to check if key={} is blocked in Redis: {}. Defaulting to false.", key, e.getMessage());
+            return false;
+        }
     }
 }

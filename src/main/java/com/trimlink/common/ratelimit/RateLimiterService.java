@@ -77,14 +77,20 @@ public class RateLimiterService {
         long nowMs     = Instant.now().toEpochMilli();
         long expireAt  = Instant.now().getEpochSecond() + windowSecs + 1;
 
-        Long count = stringRedisTemplate.execute(
-                script,
-                List.of(key),
-                String.valueOf(nowMs),
-                String.valueOf(windowSecs),
-                String.valueOf(maxRequests),
-                String.valueOf(expireAt)
-        );
+        Long count;
+        try {
+            count = stringRedisTemplate.execute(
+                    script,
+                    List.of(key),
+                    String.valueOf(nowMs),
+                    String.valueOf(windowSecs),
+                    String.valueOf(maxRequests),
+                    String.valueOf(expireAt)
+            );
+        } catch (Exception e) {
+            log.warn("Redis error during rate limit check for key={}: {}. Bypassing rate limit check.", key, e.getMessage());
+            return;
+        }
 
         if (count == null || count > maxRequests) {
             log.warn("Rate limit exceeded for key={}", key);
