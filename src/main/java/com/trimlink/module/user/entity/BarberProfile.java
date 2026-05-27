@@ -21,6 +21,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class BarberProfile extends BaseEntity {
 
     @JsonIgnore
@@ -51,6 +52,7 @@ public class BarberProfile extends BaseEntity {
     private boolean available = true;
 
     // Services this barber offers — join table
+    @org.hibernate.envers.NotAudited
     @OneToMany(mappedBy = "barberProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BarberServiceAssignment> serviceAssignments = new ArrayList<>();

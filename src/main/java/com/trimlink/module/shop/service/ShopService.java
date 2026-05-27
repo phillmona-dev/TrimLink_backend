@@ -1,5 +1,6 @@
 package com.trimlink.module.shop.service;
 
+import com.trimlink.module.audit.annotation.AuditAction;
 import com.trimlink.module.booking.entity.AppointmentStatus;
 import com.trimlink.module.booking.repository.AppointmentRepository;
 import com.trimlink.module.queue.entity.QueueStatus;
@@ -94,12 +95,14 @@ public class ShopService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "shops", key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<ShopSearchResponse> listAllShops(Pageable pageable) {
         Page<BarberShop> shops = shopRepository.findAll(pageable);
         return shops.map(this::mapToSearchResponse);
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "shopDetails", key = "#id")
     public ShopSearchResponse getShopById(UUID id) {
         BarberShop shop = shopRepository.findById(id)
                 .orElseThrow(() -> new com.trimlink.common.exception.ResourceNotFoundException("BarberShop", "id", id));
@@ -199,6 +202,7 @@ public class ShopService {
     }
 
     @Transactional
+    @AuditAction(action = "LOG_DAILY_WORK", resource = "SHOP")
     public void logDailyWork(UUID barberId, int count, String notes) {
         LocalDate today = LocalDate.now();
         DailyWorkLog log = dailyWorkLogRepository.findByBarberIdAndLogDate(barberId, today)

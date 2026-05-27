@@ -1,4 +1,5 @@
 spring:
+  debug: true
   application:
     name: trimlink-backend
 
@@ -48,12 +49,26 @@ spring:
           batch_size: 30
         order_inserts: true
         order_updates: true
+      org:
+        hibernate:
+          envers:
+            audit_table_suffix: _aud
+            revision_field_name: rev_id
+            revision_type_field_name: rev_type
+            store_data_at_delete: true
+            default_schema: public
     open-in-view: false
 
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000 # 10 minutes default TTL
+      cache-null-values: false
 
   data:
     redis:
@@ -118,6 +133,9 @@ trimlink:
       allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
     oauth2:
         redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+  booking:
+    expiration-minutes: ${BOOKING_EXPIRATION_MINUTES:20}
+    expiration-check-rate: ${BOOKING_EXPIRATION_CHECK_RATE:300000} # 5 minutes
 
   # ==================== PAYMENT ====================
 
@@ -140,6 +158,8 @@ trimlink:
       verify-path: ${TELEBIRR_VERIFY_PATH:/merchant/v1/payment/query}
       signature-algorithm: ${TELEBIRR_SIGNATURE_ALGORITHM:RSA}
       timeout-seconds: ${TELEBIRR_TIMEOUT_SECONDS:900}
+    reconciliation:
+      fixed-rate: ${PAYMENT_RECONCILIATION_RATE:600000} # 10 minutes
 
   # ==================== NOTIFICATION ====================
   notification:
@@ -191,21 +211,42 @@ resilience4j:
       telebirr:
         max-attempts: 3
         wait-duration: 2s
+      sms:
+        max-attempts: 3
+        wait-duration: 3s
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
 
 # ==================== ACTUATOR ====================
 
 management:
+  metrics:
+    tags:
+      application: trimlink-backend
   endpoints:
     web:
+      base-path: /actuator
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,loggers
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
+      probes:
+        enabled: true
   health:
+    defaults:
+      enabled: true
     redis:
       enabled: true
     kafka:
+      enabled: true
+    db:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
       enabled: true
 
 # ==================== DOCS ====================
@@ -219,7 +260,9 @@ springdoc:
 # ==================== LOGGING ====================
 logging:
   level:
-    com.trimlink: INFO
+    com.trimlink: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.envers: DEBUG
     org.springframework.security: WARN
     org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
   pattern:

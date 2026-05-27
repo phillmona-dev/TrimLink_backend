@@ -218,6 +218,64 @@ public class PaymentService {
         }
     }
 
+    /**
+     * Reconciles a single payment by checking its status with the provider's API.
+     * Used by the reconciliation job for stuck PENDING payments.
+     */
+    @Transactional
+    public void reconcile(Payment payment) {
+        log.info("Reconciling payment txRef={} via provider {}", payment.getTxRef(), payment.getProvider());
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.debug("Payment txRef={} is not PENDING (status={}). Skipping reconciliation.",
+                    payment.getTxRef(), payment.getStatus());
+            return;
+        }
+
+        if (payment.getProvider() == PaymentProvider.CHAPA) {
+            reconcileChapa(payment);
+        } else {
+            reconcileTelebirr(payment);
+        }
+    }
+
+    private void reconcileChapa(Payment payment) {
+        try {
+            ChapaClient.ChapaVerifyResponse verify = chapaClient.verifyTransaction(payment.getTxRef());
+            if (verify != null && verify.isSuccessful() && providerVerificationMatches(payment, verify)) {
+                String providerTxId = verify.getData() != null ? verify.getData().getReference() : "unknown";
+                payment.markSuccess(providerTxId, "RECONCILIATION_AUTO_SYNC");
+                paymentRepository.save(payment);
+
+                confirmReferenceEntity(payment);
+                eventProducer.publishPaymentSuccess(PaymentEvent.success(payment));
+                log.info("Reconciliation SUCCESS (Chapa): txRef={}", payment.getTxRef());
+            } else {
+                log.info("Reconciliation check (Chapa): txRef={} still not successful.", payment.getTxRef());
+            }
+        } catch (Exception e) {
+            log.error("Error during Chapa reconciliation for txRef={}: {}", payment.getTxRef(), e.getMessage());
+        }
+    }
+
+    private void reconcileTelebirr(Payment payment) {
+        try {
+            TelebirrClient.TelebirrVerifyResponse verify = telebirrClient.verifyTransaction(payment.getTxRef());
+            if (verify != null && verify.isSuccessful() && providerVerificationMatches(payment, verify)) {
+                payment.markSuccess(verify.getProviderTxId(), "RECONCILIATION_AUTO_SYNC");
+                paymentRepository.save(payment);
+
+                confirmReferenceEntity(payment);
+                eventProducer.publishPaymentSuccess(PaymentEvent.success(payment));
+                log.info("Reconciliation SUCCESS (Telebirr): txRef={}", payment.getTxRef());
+            } else {
+                log.info("Reconciliation check (Telebirr): txRef={} still not successful.", payment.getTxRef());
+            }
+        } catch (Exception e) {
+            log.error("Error during Telebirr reconciliation for txRef={}: {}", payment.getTxRef(), e.getMessage());
+        }
+    }
+
     // ─── Telebirr Webhook ─────────────────────────────────────────────────
 
     @Transactional
@@ -264,6 +322,24 @@ public class PaymentService {
         if (!canAccessPayment(payment, requesterId, requesterRole)) {
             throw new AccessDeniedException("You are not allowed to access this payment.");
         }
+        return toResponse(payment);
+    }
+
+    /**
+     * Manually triggers reconciliation for a payment.
+     * Authorized for the user who initiated the payment or an ADMIN.
+     */
+    @Transactional
+    public PaymentResponse manualReconcile(UUID requesterId, String requesterRole, UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", "id", paymentId));
+
+        if (!canAccessPayment(payment, requesterId, requesterRole)) {
+            throw new AccessDeniedException("You are not allowed to reconcile this payment.");
+        }
+
+        reconcile(payment);
+
         return toResponse(payment);
     }
 

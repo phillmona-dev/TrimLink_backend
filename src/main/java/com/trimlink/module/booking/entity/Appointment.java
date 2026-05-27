@@ -7,6 +7,7 @@ import com.trimlink.module.user.entity.BarberProfile;
 import com.trimlink.module.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Audited
 public class Appointment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

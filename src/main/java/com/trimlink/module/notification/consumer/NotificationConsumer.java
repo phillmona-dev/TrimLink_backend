@@ -125,6 +125,43 @@ public class NotificationConsumer {
     }
 
     @KafkaListener(
+            topics = "${trimlink.kafka.topics.booking-cancelled}",
+            groupId = "trimlink-notification-group"
+    )
+    public void onBookingCancelled(@Payload com.trimlink.messaging.event.BookingCancelledEvent event) {
+        log.info("Notification: BookingCancelled for appointmentId={}", event.getAppointmentId());
+        try {
+            String message = String.format(
+                    "TrimLink: Hi %s, your booking at %s has been cancelled. Reason: %s",
+                    event.getCustomerName(),
+                    event.getShopName(),
+                    event.getReason() != null ? event.getReason() : "N/A"
+            );
+            
+            smsService.send(event.getCustomerPhone(), message);
+            
+            pushNotificationService.sendToUser(event.getCustomerId(), PushMessage.builder()
+                    .title("Booking Cancelled")
+                    .body(message)
+                    .data(Map.of(
+                            "type", "BOOKING_CANCELLED",
+                            "appointmentId", event.getAppointmentId().toString()
+                    ))
+                    .build());
+
+            // Notify Customer via WebSocket
+            webSocketNotificationService.notifyCustomer(event.getCustomerId(), Map.of(
+                    "type", "BOOKING_CANCELLED",
+                    "appointmentId", event.getAppointmentId().toString(),
+                    "message", message
+            ));
+        } catch (Exception e) {
+            log.error("Failed to send cancellation notification for appointmentId={}: {}",
+                    event.getAppointmentId(), e.getMessage());
+        }
+    }
+
+    @KafkaListener(
             topics = "${trimlink.kafka.topics.queue-updated}",
             groupId = "trimlink-notification-group"
     )

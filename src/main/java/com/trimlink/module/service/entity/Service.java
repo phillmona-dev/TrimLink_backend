@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class Service extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 150)

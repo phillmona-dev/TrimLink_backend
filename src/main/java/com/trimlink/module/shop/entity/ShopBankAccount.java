@@ -13,6 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class ShopBankAccount extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -26,16 +26,27 @@ public class AuditAspect {
         String resourceType = auditAction.resource();
         
         // Try to find an ID and Username in the arguments
-        String resourceId = extractResourceId(joinPoint);
+        String resourceId = extractResourceId(joinPoint, resourceType);
         String usernameFromArgs = extractUsername(joinPoint);
         
         Object result;
         try {
             result = joinPoint.proceed();
             
+            // For CREATE actions, the ID in arguments might be a parent ID (e.g. customerId).
+            // We should prioritize the ID from the result (the new entity ID).
+            if ((action.contains("CREATE") || resourceId == null) && result != null) {
+                String resultId = extractIdFromObject(result);
+                if (resultId != null) {
+                    log.debug("Audit: Extracted ID from result: {} (was: {})", resultId, resourceId);
+                    resourceId = resultId;
+                }
+            }
+            
+            log.debug("Audit: Logging action={} resourceType={} resourceId={}", action, resourceType, resourceId);
+            
             // Log success
             if (usernameFromArgs != null) {
-                // If we found a username in args (like login), use it explicitly
                 auditService.log(null, usernameFromArgs, action, resourceType, resourceId, "SUCCESS", "Execution successful", com.trimlink.common.utils.RequestUtils.captureRequestMetadata());
             } else {
                 auditService.logCurrent(action, resourceType, resourceId, "SUCCESS", "Execution successful");
@@ -77,7 +88,7 @@ public class AuditAspect {
         return null;
     }
 
-    private String extractResourceId(ProceedingJoinPoint joinPoint) {
+    private String extractResourceId(ProceedingJoinPoint joinPoint, String resourceType) {
         try {
             Object[] args = joinPoint.getArgs();
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -85,15 +96,36 @@ public class AuditAspect {
 
             if (args == null || args.length == 0) return null;
 
-            // 1. Look for parameter named 'id' or ending with 'Id' or 'Uuid'
+            // 1. Look for parameter named exactly 'id'
             for (int i = 0; i < parameterNames.length; i++) {
-                String name = parameterNames[i].toLowerCase();
-                if (name.equals("id") || name.endsWith("id") || name.endsWith("uuid")) {
+                if (parameterNames[i].equalsIgnoreCase("id")) {
                     return String.valueOf(args[i]);
                 }
             }
 
-            // 2. Default to first argument if it's a simple type
+            // 2. Look for parameter that matches the resource type (e.g. 'appointmentId' for 'BOOKING')
+            // This handles cases like 'appointmentId' or 'bookingId' or 'shopId'
+            String resourcePrefix = resourceType.toLowerCase();
+            for (int i = 0; i < parameterNames.length; i++) {
+                String name = parameterNames[i].toLowerCase();
+                if (name.contains(resourcePrefix) && (name.endsWith("id") || name.endsWith("uuid"))) {
+                    return String.valueOf(args[i]);
+                }
+            }
+
+            // 3. Fallback to any parameter ending with 'Id' or 'Uuid' (but NOT if it starts with common prefixes like 'customer' or 'user' unless resource is USER)
+            for (int i = 0; i < parameterNames.length; i++) {
+                String name = parameterNames[i].toLowerCase();
+                if (name.endsWith("id") || name.endsWith("uuid")) {
+                    // Skip 'customerId' if we are looking for 'BOOKING'
+                    if (name.startsWith("customer") && !resourceType.equalsIgnoreCase("USER") && !resourceType.equalsIgnoreCase("CUSTOMER")) {
+                        continue;
+                    }
+                    return String.valueOf(args[i]);
+                }
+            }
+
+            // 4. Default to first argument if it's a simple type
             Object firstArg = args[0];
             if (firstArg instanceof String || firstArg instanceof java.util.UUID || firstArg instanceof Long) {
                 return String.valueOf(firstArg);
@@ -102,5 +134,17 @@ public class AuditAspect {
             log.warn("Could not extract resource ID for audit: {}", e.getMessage());
         }
         return null;
+    }
+
+    private String extractIdFromObject(Object obj) {
+        if (obj == null) return null;
+        try {
+            // Try getId()
+            var method = obj.getClass().getMethod("getId");
+            return String.valueOf(method.invoke(obj));
+        } catch (Exception e) {
+            // Silently fail if no ID method found
+            return null;
+        }
     }
 }

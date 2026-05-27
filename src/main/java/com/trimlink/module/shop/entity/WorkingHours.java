@@ -20,6 +20,7 @@ import java.time.LocalTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class WorkingHours extends BaseEntity {
 
     @com.fasterxml.jackson.annotation.JsonIgnore

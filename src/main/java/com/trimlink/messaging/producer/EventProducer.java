@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface EventProducer {
     void publishBookingCreated(BookingCreatedEvent event);
     void publishBookingConfirmed(BookingConfirmedEvent event);
-    void publishBookingCancelled(UUID appointmentId);
+    void publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent event);
     void publishBookingCompleted(UUID appointmentId);
     void publishPaymentSuccess(PaymentEvent event);
     void publishPaymentFailed(PaymentEvent event);

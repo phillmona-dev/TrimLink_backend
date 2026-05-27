@@ -22,6 +22,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class BarberShop extends BaseEntity {
 
     @Column(name = "name", nullable = false, length = 200)

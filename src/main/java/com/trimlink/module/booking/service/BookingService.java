@@ -6,6 +6,7 @@ import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.messaging.event.BookingCreatedEvent;
 import com.trimlink.messaging.event.BookingConfirmedEvent;
 import com.trimlink.messaging.producer.EventProducer;
+import com.trimlink.module.audit.annotation.AuditAction;
 import com.trimlink.module.booking.dto.AppointmentResponse;
 import com.trimlink.module.booking.dto.CreateAppointmentRequest;
 import com.trimlink.module.booking.dto.SlotAvailabilityRequest;
@@ -60,6 +61,12 @@ public class BookingService {
     // ─── Create Booking ────────────────────────────────────────────────────
 
     @Transactional
+    @AuditAction(action = "CREATE_BOOKING", resource = "BOOKING")
+    @org.springframework.cache.annotation.CacheEvict(
+            value = "availableSlots",
+            key = "#req.barberId + #req.scheduledStart.toLocalDate()",
+            allEntries = true
+    )
     public AppointmentResponse createAppointment(UUID customerId, CreateAppointmentRequest req) {
         User customer         = findUser(customerId);
         BarberProfile barber  = findBarber(req.getBarberId());
@@ -122,6 +129,11 @@ public class BookingService {
      * marking each as available or taken.
      */
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(
+            value = "availableSlots",
+            key = "#req.barberId + #req.date",
+            unless = "#result == null"
+    )
     public List<TimeSlotResponse> getAvailableSlots(SlotAvailabilityRequest req) {
         BarberProfile barber = barberProfileRepository.findById(req.getBarberId())
                 .or(() -> barberProfileRepository.findByUserId(req.getBarberId()))
@@ -180,6 +192,7 @@ public class BookingService {
     // ─── Status Transitions ────────────────────────────────────────────────
 
     @Transactional
+    @AuditAction(action = "CONFIRM_BOOKING", resource = "BOOKING")
     public AppointmentResponse confirmAppointment(UUID appointmentId) {
         Appointment appt = findAppointment(appointmentId);
         appt.confirm();
@@ -202,6 +215,7 @@ public class BookingService {
     }
 
     @Transactional
+    @AuditAction(action = "REJECT_BOOKING", resource = "BOOKING")
     public AppointmentResponse rejectAppointment(UUID appointmentId, String reason) {
         Appointment appt = findAppointment(appointmentId);
         appt.reject(reason);
@@ -240,11 +254,33 @@ public class BookingService {
     }
 
     @Transactional
+    @AuditAction(action = "CANCEL_BOOKING", resource = "BOOKING")
+    @org.springframework.cache.annotation.CacheEvict(value = "availableSlots", allEntries = true)
     public AppointmentResponse cancelAppointment(UUID appointmentId, String reason) {
         Appointment appt = findAppointment(appointmentId);
         appt.cancel(reason);
-        eventProducer.publishBookingCancelled(appointmentId);
-        return toResponse(appointmentRepository.save(appt));
+        Appointment saved = appointmentRepository.save(appt);
+        eventProducer.publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent.from(saved));
+        return toResponse(saved);
+    }
+
+    /**
+     * Automatically expires a PENDING appointment that was not paid in time.
+     * Only works if the appointment is still PENDING.
+     */
+    @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "availableSlots", allEntries = true)
+    public void expireAppointment(Appointment appt) {
+        if (appt.getStatus() != AppointmentStatus.PENDING) {
+            return;
+        }
+        log.info("Expiring unpaid appointment id={} (created at {})", appt.getId(), appt.getCreatedAt());
+        appt.cancel("Payment timeout: Appointment expired after failing to complete payment in time.");
+        Appointment saved = appointmentRepository.save(appt);
+        eventProducer.publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent.from(saved));
+        
+        // Notify customer via websocket
+        webSocketNotificationService.notifyCustomer(appt.getCustomer().getId(), toResponse(saved));
     }
 
     @Transactional
@@ -252,8 +288,9 @@ public class BookingService {
         Appointment appointment = findAppointment(appointmentId);
         enforceAppointmentAccess(appointment, requesterId, requesterRole);
         appointment.cancel(reason);
-        eventProducer.publishBookingCancelled(appointmentId);
-        return toResponse(appointmentRepository.save(appointment));
+        Appointment saved = appointmentRepository.save(appointment);
+        eventProducer.publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent.from(saved));
+        return toResponse(saved);
     }
 
     @Transactional

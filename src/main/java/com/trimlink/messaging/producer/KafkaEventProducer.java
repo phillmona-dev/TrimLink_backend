@@ -48,8 +48,8 @@ public class KafkaEventProducer implements EventProducer {
     }
 
     @org.springframework.scheduling.annotation.Async
-    public void publishBookingCancelled(UUID appointmentId) {
-        send(bookingCancelled, appointmentId.toString(), appointmentId);
+    public void publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent event) {
+        send(bookingCancelled, event.getAppointmentId().toString(), event);
     }
 
     @org.springframework.scheduling.annotation.Async

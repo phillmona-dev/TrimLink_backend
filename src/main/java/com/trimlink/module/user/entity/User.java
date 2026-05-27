@@ -19,12 +19,14 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.envers.Audited
 public class User extends BaseEntity {
 
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
     @JsonIgnore
+    @org.hibernate.envers.NotAudited
     @Column(name = "password")
     private String password;
 

@@ -31,8 +31,8 @@ public class NoOpEventProducer implements EventProducer {
     }
 
     @Override
-    public void publishBookingCancelled(UUID appointmentId) {
-        log.debug("Kafka disabled. Skipping publishBookingCancelled for ID: {}", appointmentId);
+    public void publishBookingCancelled(com.trimlink.messaging.event.BookingCancelledEvent event) {
+        log.debug("Kafka disabled. Skipping publishBookingCancelled for ID: {}", event.getAppointmentId());
     }
 
     @Override

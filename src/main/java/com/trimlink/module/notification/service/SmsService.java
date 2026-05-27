@@ -1,5 +1,6 @@
 package com.trimlink.module.notification.service;
 
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,8 +14,7 @@ import java.util.Map;
  *
  * For low-bandwidth environments:
  * - Messages are kept short (≤ 160 chars where possible)
- * - WebClient is non-blocking; failures are caught and logged
- * - A retry can be added via @Retry(name="sms") in production
+ * - WebClient is used with retries for high reliability in production
  */
 @Slf4j
 @Service
@@ -41,11 +41,12 @@ public class SmsService {
 
     /**
      * Send an SMS message to a phone number.
-     * Non-blocking — failure does NOT propagate to the calling thread.
+     * Uses Resilience4j @Retry to handle transient network issues.
      *
      * @param to      Phone number in E.164 format (+251...)
      * @param message SMS body (≤ 160 chars recommended for single-part SMS)
      */
+    @Retry(name = "sms")
     public void send(String to, String message) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("SMS not sent (no API key configured). To={}, Message={}", to, message);
@@ -54,20 +55,24 @@ public class SmsService {
 
         log.info("Sending SMS to={}, length={}", to, message.length());
 
-        webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .queryParam("from", identifierId)
-                        .queryParam("sender", senderId)
-                        .queryParam("to", to)
-                        .queryParam("message", truncate(message, 160))
-                        .build())
-                .header("Authorization", "Bearer " + apiKey)
-                .retrieve()
-                .bodyToMono(String.class)
-                .subscribe(
-                        response -> log.info("SMS sent to {}. Response: {}", to, response),
-                        error    -> log.error("SMS failed for {}: {}", to, error.getMessage())
-                );
+        try {
+            String response = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("from", identifierId)
+                            .queryParam("sender", senderId)
+                            .queryParam("to", to)
+                            .queryParam("message", truncate(message, 160))
+                            .build())
+                    .header("Authorization", "Bearer " + apiKey)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(); // Blocking call to allow @Retry to catch exceptions
+
+            log.info("SMS sent to {}. Response: {}", to, response);
+        } catch (Exception e) {
+            log.error("SMS attempt failed for {}: {}", to, e.getMessage());
+            throw e; // Rethrow to trigger Resilience4j retry
+        }
     }
 
     private String truncate(String text, int maxLen) {

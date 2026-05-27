@@ -249,4 +249,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID>,
             @Param("to") LocalDateTime to,
             @Param("query") String query,
             Pageable pageable);
+
+    /**
+     * Find PENDING appointments created before a specific time.
+     * Used for auto-expiration jobs.
+     */
+    @Query("SELECT a FROM Appointment a WHERE a.status = 'PENDING' AND a.createdAt < :cutoff AND a.deleted = false")
+    List<Appointment> findPendingOlderThan(@Param("cutoff") LocalDateTime cutoff);
 }

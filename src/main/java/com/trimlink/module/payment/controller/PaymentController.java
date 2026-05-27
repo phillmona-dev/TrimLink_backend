@@ -46,4 +46,14 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.ok(
                 paymentService.getPaymentStatus(principal.getUserId(), principal.getRole(), id)));
     }
+
+    @Operation(summary = "Manually trigger payment reconciliation (sync with provider)")
+    @PostMapping("/{id}/reconcile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PaymentResponse>> reconcile(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                paymentService.manualReconcile(principal.getUserId(), principal.getRole(), id)));
+    }
 }

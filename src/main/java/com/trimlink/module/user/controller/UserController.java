@@ -2,6 +2,7 @@ package com.trimlink.module.user.controller;
 
 import com.trimlink.common.dto.ApiResponse;
 import com.trimlink.common.exception.ResourceNotFoundException;
+import com.trimlink.module.audit.annotation.AuditAction;
 import com.trimlink.module.user.entity.User;
 import com.trimlink.module.user.repository.UserRepository;
 import com.trimlink.security.AuthenticatedUser;
@@ -47,6 +48,7 @@ public class UserController {
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
     @Transactional
+    @AuditAction(action = "UPDATE_PROFILE", resource = "USER")
     public ResponseEntity<ApiResponse<User>> updateMyProfile(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody UpdateProfileRequest req) {
@@ -91,6 +93,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
+    @AuditAction(action = "DEACTIVATE_USER", resource = "USER")
     public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));

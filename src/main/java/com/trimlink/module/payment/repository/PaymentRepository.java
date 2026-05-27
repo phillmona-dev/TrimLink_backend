@@ -25,4 +25,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             java.util.List<PaymentStatus> statuses);
 
     Optional<Payment> findByReferenceId(UUID referenceId);
+
+    /**
+     * Find pending payments that were created before a specific time.
+     * Used for reconciliation jobs to pick up "stuck" payments.
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM Payment p WHERE p.status = 'PENDING' AND p.createdAt < :cutoff")
+    java.util.List<Payment> findPendingOlderThan(java.time.LocalDateTime cutoff);
 }
