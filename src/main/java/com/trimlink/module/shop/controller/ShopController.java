@@ -98,6 +98,17 @@ public class ShopController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    @Operation(summary = "Get shop working hours by shop ID (public)")
+    @GetMapping("/{id}/hours")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<List<com.trimlink.module.shop.entity.WorkingHours>>> getShopHours(
+            @PathVariable UUID id) {
+        if (!shopRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Shop", "id", id);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(workingHoursRepository.findByShopIdOrderByDayOfWeek(id)));
+    }
+
     // POST /shops — ADMIN/OWNER
     @Operation(summary = "Create a new barbershop")
     @PostMapping
@@ -527,14 +538,30 @@ public class ShopController {
             }
             return com.trimlink.module.booking.dto.AppointmentResponse.builder()
                     .id(a.getId())
-                    .shopName(a.getShop().getName())
-                    .barberName(barberName)
+                    .customerId(a.getCustomer() != null ? a.getCustomer().getId() : null)
                     .customerName(custName)
+                    .customerPhone(a.getCustomer() != null ? a.getCustomer().getPhoneNumber() : null)
+                    .barberId(a.getBarber() != null ? a.getBarber().getId() : null)
+                    .barberName(barberName)
+                    .shopId(a.getShop() != null ? a.getShop().getId() : null)
+                    .shopName(a.getShop() != null ? a.getShop().getName() : null)
+                    .shopAddress(a.getShop() != null ? a.getShop().getAddress() : null)
+                    .serviceId(a.getService() != null ? a.getService().getId() : null)
                     .serviceName(svcName)
+                    .serviceDurationMinutes(a.getService() != null ? a.getService().getDurationMinutes() : null)
                     .scheduledStart(a.getScheduledStart())
                     .scheduledEnd(a.getScheduledEnd())
+                    .actualStart(a.getActualStart())
+                    .actualEnd(a.getActualEnd())
                     .status(a.getStatus())
+                    .paymentStatus(a.getPaymentStatus())
                     .priceCharged(a.getPriceCharged())
+                    .notes(a.getNotes())
+                    .cancellationReason(a.getCancellationReason())
+                    .receiptImageUrl(a.getReceiptImageUrl())
+                    .styleReferenceUrl(a.getStyleReferenceUrl())
+                    .ticketNumber(a.getTicketNumber())
+                    .createdAt(a.getCreatedAt())
                     .build();
         }))));
     }

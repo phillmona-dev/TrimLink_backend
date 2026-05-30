@@ -18,6 +18,7 @@ public class CreateAppointmentRequest {
 
     @NotNull(message = "Service ID is required")
     private UUID serviceId;
+    private UUID customerId;
 
     @NotNull(message = "Scheduled start time is required")
     @Future(message = "Appointment must be in the future")

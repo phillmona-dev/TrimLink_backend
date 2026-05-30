@@ -2,6 +2,8 @@ package com.trimlink.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,8 +37,8 @@ public class RedisConfig implements CachingConfigurer {
         template.setConnectionFactory(factory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
-        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(objectMapper()));
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper()));
+        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper()));
         template.afterPropertiesSet();
         return template;
     }
@@ -48,7 +50,7 @@ public class RedisConfig implements CachingConfigurer {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer(objectMapper())))
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper())))
                 .disableCachingNullValues();
 
         return RedisCacheManager.builder(factory)
@@ -58,9 +60,25 @@ public class RedisConfig implements CachingConfigurer {
 
     @Bean
     public ObjectMapper objectMapper() {
+        return baseObjectMapper();
+    }
+
+    private ObjectMapper baseObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
+    }
+
+    private ObjectMapper redisObjectMapper() {
+        ObjectMapper mapper = baseObjectMapper();
+        PolymorphicTypeValidator typeValidator = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.trimlink.")
+                .allowIfSubType("org.springframework.data.domain.")
+                .allowIfSubType("java.util.")
+                .allowIfSubType("java.time.")
+                .build();
+        mapper.activateDefaultTyping(typeValidator, ObjectMapper.DefaultTyping.NON_FINAL);
         return mapper;
     }
 

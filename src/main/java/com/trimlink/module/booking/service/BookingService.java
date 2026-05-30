@@ -64,7 +64,7 @@ public class BookingService {
     @AuditAction(action = "CREATE_BOOKING", resource = "BOOKING")
     @org.springframework.cache.annotation.CacheEvict(
             value = "availableSlots",
-            key = "#req.barberId + #req.scheduledStart.toLocalDate()",
+            key = "#req.barberId.toString().concat(':').concat(#req.scheduledStart.toLocalDate().toString())",
             allEntries = true
     )
     public AppointmentResponse createAppointment(UUID customerId, CreateAppointmentRequest req) {
@@ -131,7 +131,7 @@ public class BookingService {
     @Transactional(readOnly = true)
     @org.springframework.cache.annotation.Cacheable(
             value = "availableSlots",
-            key = "#req.barberId + #req.date",
+            key = "#req.barberId.toString().concat(':').concat(#req.date.toString())",
             unless = "#result == null"
     )
     public List<TimeSlotResponse> getAvailableSlots(SlotAvailabilityRequest req) {

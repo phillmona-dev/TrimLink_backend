@@ -3,8 +3,12 @@ package com.trimlink.module.user.controller;
 import com.trimlink.common.dto.ApiResponse;
 import com.trimlink.common.exception.ResourceNotFoundException;
 import com.trimlink.module.audit.annotation.AuditAction;
+import com.trimlink.module.user.dto.CreateCustomerRequest;
+import com.trimlink.module.user.entity.ApprovalStatus;
+import com.trimlink.module.user.entity.Role;
 import com.trimlink.module.user.entity.User;
 import com.trimlink.module.user.repository.UserRepository;
+import com.trimlink.module.user.service.UserService;
 import com.trimlink.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +18,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +35,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final UserService userService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     // GET /users/me — get my profile
@@ -88,6 +95,30 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(user));
     }
 
+    @Operation(summary = "Get users (paginated) with search and filters")
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'BARBER')")
+    public ResponseEntity<ApiResponse<Page<User>>> getUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) ApprovalStatus approvalStatus,
+            @RequestParam(required = false) Boolean deleted,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                userService.getUsers(search, role, active, approvalStatus, deleted, pageable)
+        ));
+    }
+
+    @Operation(summary = "Create customer with minimum required fields")
+    @PostMapping("/customers")
+    @PreAuthorize("hasAnyRole('ADMIN', 'OWNER', 'BARBER')")
+    @AuditAction(action = "CREATE_CUSTOMER", resource = "USER")
+    public ResponseEntity<ApiResponse<User>> createCustomer(
+            @Valid @RequestBody CreateCustomerRequest req) {
+        return ResponseEntity.status(201).body(ApiResponse.created(userService.createCustomer(req)));
+    }
+
     // DELETE /users/{id} — soft delete (admin only)
     @Operation(summary = "Deactivate user account (admin)")
     @DeleteMapping("/{id}")
@@ -113,4 +144,5 @@ public class UserController {
         private String password;
         private String avatarUrl;
     }
+
 }

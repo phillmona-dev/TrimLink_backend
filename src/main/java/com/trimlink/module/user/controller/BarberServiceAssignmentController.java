@@ -27,7 +27,7 @@ public class BarberServiceAssignmentController {
 
     @Operation(summary = "List active services assigned to a barber")
     @GetMapping("/{barberId}")
-    @PreAuthorize("isAuthenticated()")
+//    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<BarberServiceAssignmentResponse>>> listAssignments(
             @PathVariable UUID barberId) {
         return ResponseEntity.ok(ApiResponse.ok(assignmentService.listAssignments(barberId)));

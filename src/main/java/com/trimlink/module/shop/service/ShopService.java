@@ -95,13 +95,14 @@ public class ShopService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "shopsV2", key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<ShopSearchResponse> listAllShops(Pageable pageable) {
         Page<BarberShop> shops = shopRepository.findAll(pageable);
         return shops.map(this::mapToSearchResponse);
     }
 
     @Transactional(readOnly = true)
-    @org.springframework.cache.annotation.Cacheable(value = "shopDetails", key = "#id")
+    @org.springframework.cache.annotation.Cacheable(value = "shopDetailsV2", key = "#id")
     public ShopSearchResponse getShopById(UUID id) {
         BarberShop shop = shopRepository.findById(id)
                 .orElseThrow(() -> new com.trimlink.common.exception.ResourceNotFoundException("BarberShop", "id", id));

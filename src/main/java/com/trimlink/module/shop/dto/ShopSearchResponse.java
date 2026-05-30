@@ -1,13 +1,17 @@
 package com.trimlink.module.shop.dto;
 
 import com.trimlink.module.shop.entity.BarberShop;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ShopSearchResponse {
     private UUID id;
     private String name;
@@ -28,6 +32,8 @@ public class ShopSearchResponse {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class BankAccountDTO {
         private UUID id;
         private String bankName;

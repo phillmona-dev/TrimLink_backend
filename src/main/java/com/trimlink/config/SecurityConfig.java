@@ -73,8 +73,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/shops/my-shop/**").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/shops", "/shops/{id}", "/shops/{id}/barbers").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/barbers", "/barbers/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/shops", "/shops/{id}", "/shops/{id}/barbers", "/shops/{id}/hours").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/barbers", "/barbers/{id}", "/barbers/{id}/day-schedule").permitAll()
                         .requestMatchers(HttpMethod.GET, "/services/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/barber/**").hasAnyRole("BARBER", "OWNER", "ADMIN")

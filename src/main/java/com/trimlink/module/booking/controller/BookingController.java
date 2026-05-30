@@ -33,13 +33,13 @@ public class BookingController {
     // POST /bookings — create appointment
     @Operation(summary = "Create a new appointment")
     @PostMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
+//    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> createAppointment(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody CreateAppointmentRequest request) {
 
         AppointmentResponse response = bookingService.createAppointment(
-                principal.getUserId(), request);
+                request.getCustomerId()!=null?request.getCustomerId():principal.getUserId(), request);
         return ResponseEntity.status(201).body(ApiResponse.created(response));
     }
 
